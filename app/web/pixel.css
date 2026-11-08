@@ -1,0 +1,712 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 Earworm · 像素皮肤（Pixel Theme）
+   ---------------------------------------------------------------
+   只在 app.css 之后追加，不改业务样式：靠覆盖设计令牌 + 逐个组件
+   重绘，把「墨染玻璃」换成「8-bit 块面」：
+     · 全部圆角归零，边框 2px 实线 + 硬投影（3px 3px 0 #000）
+     · 字体换成 12px 像素字（Ark Pixel），字号只用 12 / 24 / 36
+     · 去掉模糊、半透明、渐变柔光，改平涂色块 + 网点/扫描线
+     · 图像 image-rendering: pixelated
+   ═══════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Ark Pixel 12';
+  src: url('./fonts/ark-pixel-12.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  /* 像素色板 */
+  --px-0: #08090c;
+  --px-1: #0e1014;
+  --px-2: #151920;
+  --px-3: #1d232c;
+  --px-4: #262e39;
+  --px-line: #2b323d;
+  --px-line-hi: #48546633;
+  --px-txt: #eae4d6;
+  --px-dim: #98a0a8;
+  --px-amber: #e6b06a;
+  --px-amber-hi: #f6cd93;
+  --px-red: #d1483a;
+  --px-green: #8fb8ae;
+  --px-shadow: 3px 3px 0 rgba(0, 0, 0, .85);
+  --px-shadow-lg: 6px 6px 0 rgba(0, 0, 0, .8);
+  --pixel-font: 'Ark Pixel 12', 'PingFang SC', 'Hiragino Sans GB', monospace;
+
+  /* 11×11 像素音符精灵：品牌徽章 / 无封面占位 / 开机标记共用 */
+  --px-note: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 11' shape-rendering='crispEdges'><g fill='%23e6b06a'><rect x='6' y='1' width='4' height='1'/><rect x='8' y='2' width='2' height='1'/><rect x='8' y='3' width='1' height='1'/><rect x='6' y='1' width='2' height='9'/><rect x='3' y='6' width='5' height='1'/><rect x='2' y='7' width='6' height='1'/><rect x='2' y='8' width='6' height='1'/><rect x='3' y='9' width='5' height='1'/></g></svg>");
+
+  /* 覆盖 app.css 的令牌，让未单独重绘的组件也自动变方块 */
+  --ink-0: #08090c;
+  --ink-1: #0e1014;
+  --ink-2: #151920;
+  --ink-3: #1d232c;
+  --line: #2b323d;
+  --line-2: #3b4453;
+  --txt: #eae4d6;
+  --txt-dim: #98a0a8;
+  --amber: #e6b06a;
+  --amber-2: #f6cd93;
+  --amber-rgb: 230, 176, 106;
+  --cinnabar: #d1483a;
+  --celadon: #8fb8ae;
+  --glass: #12161c;
+  --glass-strong: #0d1015;
+  --blur: none;
+  --shadow-card: 3px 3px 0 rgba(0, 0, 0, .85);
+  --shadow-pop: 6px 6px 0 rgba(0, 0, 0, .8);
+  --r-lg: 0px;
+  --r-md: 0px;
+  --r-sm: 0px;
+  --serif: var(--pixel-font);
+  --sans: var(--pixel-font);
+}
+
+/* ---------- 基础重置：方块、硬边、无模糊 ---------- */
+html,
+body {
+  background: var(--px-0);
+  color: var(--px-txt);
+  font-family: var(--pixel-font) !important;
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0 !important;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+}
+
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none;
+  text-shadow: none !important;
+}
+
+/* 像素图：放大不插值 */
+img,
+canvas {
+  image-rendering: pixelated;
+}
+
+/* 网点底纹：给大面积留白一点 8-bit 颗粒 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, .028) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+/* 扫描线：极淡，营造 CRT */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, .16) 0px,
+    rgba(0, 0, 0, .16) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: .35;
+  mix-blend-mode: multiply;
+}
+
+/* 墨染/粒子 canvas 在像素风里关掉，改平涂 */
+#ink,
+#ambient {
+  display: none !important;
+}
+
+/* ---------- 排版层级：只用 12 / 24 / 36 ---------- */
+body,
+p,
+span,
+div,
+button,
+input,
+textarea,
+select,
+label,
+a,
+b,
+strong,
+small,
+li {
+  font-family: var(--pixel-font) !important;
+  letter-spacing: 0 !important;
+}
+
+body,
+p,
+span,
+label,
+a,
+b,
+strong,
+small,
+li {
+  line-height: 1.65;
+}
+
+.seal,
+.seal-sm,
+.brand-mark .seal {
+  font-family: var(--pixel-font) !important;
+  letter-spacing: 0 !important;
+}
+
+/* 小字统一 12px（原来 9–13px 的各种细碎值） */
+.card-sub,
+.b-sub,
+.bc-sub,
+.bc-info span,
+.rail-card .rc-sub,
+.meta-line,
+.mini-artist,
+.pl-name span,
+.sec-en,
+.bar-time,
+.login-tip,
+.tast-note,
+.sp-quote,
+.stat span,
+.stats-row span,
+.src-tab,
+.chip-btn,
+.text-btn,
+.queue-list small,
+.hist-wrap,
+li,
+small {
+  font-size: 12px !important;
+}
+
+/* 标题统一 24px（像素字的上伸部比 em 高，行高必须放宽，否则压住下一行） */
+.card-title,
+.b-title,
+.bc-name,
+.bc-big,
+.sec-title,
+.login-card h2,
+.stage-name,
+.pl-name,
+.pl-head h2,
+.side-panel h3,
+.q-head h2,
+.tr-title,
+.mine-name {
+  font-size: 24px !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+}
+
+/* 巨型数字 / 时钟 */
+.sp-clock {
+  font-size: 36px !important;
+  line-height: 1.4 !important;
+  font-weight: 400 !important;
+}
+
+.bc-stats b,
+.stat b,
+.stats-row b {
+  font-size: 24px !important;
+  line-height: 1.4 !important;
+  font-weight: 400 !important;
+}
+
+/* 「等待记录」这类文字型统计项保持小字，只有数字放大 */
+.stat.wide b,
+.stats-row .wide b {
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  color: var(--px-txt) !important;
+}
+
+.stat.wide i,
+.stats-row .wide i {
+  font-size: 12px !important;
+}
+
+/* 主卡标题给播放键让位，避免压到右侧 */
+.bc-name {
+  max-width: 66%;
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  background: var(--px-1) !important;
+  border-bottom: 2px solid var(--px-line) !important;
+  padding-top: 0 !important;
+}
+
+/* 品牌标记：不用印章，改成一枚像素音符徽章（纯 8-bit，无国风元素） */
+.brand-mark .seal,
+.seal,
+.seal-sm {
+  display: inline-block;
+  width: 30px; height: 30px;
+  padding: 0 !important;
+  writing-mode: horizontal-tb !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  letter-spacing: 0 !important;
+  color: transparent !important;
+  background: var(--px-note) center / 22px 22px no-repeat, var(--px-2) !important;
+  border: 2px solid var(--px-amber) !important;
+  border-radius: 0 !important;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .75) !important;
+  vertical-align: middle;
+}
+
+.brand-sub {
+  font-size: 12px !important;
+  color: var(--px-dim) !important;
+}
+
+.search-pill {
+  background: var(--px-2) !important;
+  border: 2px solid var(--px-line) !important;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, .45) !important;
+}
+
+.search-pill:focus-within {
+  border-color: var(--px-amber) !important;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, .45), 3px 3px 0 rgba(230, 176, 106, .22) !important;
+}
+
+#search-input,
+input,
+textarea {
+  background: transparent !important;
+  color: var(--px-txt) !important;
+  font-size: 12px !important;
+  border-radius: 0 !important;
+}
+
+#search-input::placeholder {
+  color: #6b7480 !important;
+}
+
+/* ---------- 通用按钮 ---------- */
+button,
+.source-btn,
+.orb-btn,
+.brush-btn,
+.chip-btn,
+.text-btn,
+.tr-btn,
+.icon-btn,
+.bar-ico,
+.orb-play,
+.pl-back,
+.ghost,
+.solid,
+.sub-btn-row button {
+  font-family: var(--pixel-font) !important;
+  font-size: 12px !important;
+  border-radius: 0 !important;
+  background: var(--px-2);
+  color: var(--px-txt);
+  border: 2px solid var(--px-line);
+  box-shadow: var(--px-shadow);
+  transition: none !important;
+  padding: 4px 8px;
+}
+
+button:hover,
+.source-btn:hover,
+.orb-btn:hover,
+.brush-btn:hover,
+.chip-btn:hover,
+.tr-btn:hover,
+.icon-btn:hover,
+.bar-ico:hover {
+  background: var(--px-3) !important;
+  border-color: var(--px-amber) !important;
+  color: var(--px-amber-hi) !important;
+}
+
+button:active,
+.source-btn:active,
+.orb-btn:active,
+.chip-btn:active,
+.tr-btn:active,
+.icon-btn:active,
+.bar-ico:active,
+.orb-play:active {
+  transform: translate(3px, 3px);
+  box-shadow: none !important;
+}
+
+/* 主播放键：方形琥珀块 */
+.orb-play {
+  background: var(--px-amber) !important;
+  color: #1b1409 !important;
+  border: 2px solid #8a5f28 !important;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .85) !important;
+  width: 44px;
+  height: 44px;
+}
+
+.orb-play:hover {
+  background: var(--px-amber-hi) !important;
+  color: #1b1409 !important;
+}
+
+.orb-play.sm {
+  width: 34px;
+  height: 34px;
+}
+
+/* 主行动按钮（登录 / 今日推荐） */
+.brush-btn,
+.solid {
+  background: var(--px-amber) !important;
+  color: #1b1409 !important;
+  border-color: #8a5f28 !important;
+  font-weight: 400 !important;
+}
+
+/* ---------- 卡片 ---------- */
+.b-card,
+.mine-card,
+.login-card,
+.taste-card,
+.queue-drawer,
+.search-drop,
+.side-panel,
+.pl-list {
+  background: var(--px-2) !important;
+  border: 2px solid var(--px-line) !important;
+  box-shadow: var(--px-shadow-lg) !important;
+  backdrop-filter: none !important;
+}
+
+/* 卡片左上角像素刻角 */
+.b-card {
+  position: relative;
+}
+
+.b-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--px-amber);
+  opacity: .7;
+  pointer-events: none;
+}
+
+.b-card:hover,
+.rail-card:hover {
+  border-color: var(--px-amber) !important;
+  transform: translate(-1px, -1px);
+}
+
+.b-kicker,
+.sec-en {
+  color: var(--px-dim) !important;
+  letter-spacing: 0 !important;
+}
+
+.card-title,
+.b-title,
+.bc-name,
+.nu-name,
+.mine-name {
+  color: var(--px-txt);
+}
+
+.card-sub,
+.bc-sub,
+.nu-sub,
+.rail-card .rc-sub,
+.mini-artist {
+  color: var(--px-dim) !important;
+}
+
+/* 封面：硬边框 + 像素化 */
+.b-card img,
+.rail-card img,
+.nu-cover,
+.cover-wrap img,
+.stage-art,
+.stage-bg img,
+.pl-grid img,
+.mine-card img,
+.mini-meta img,
+#mini-cover {
+  image-rendering: pixelated;
+  border: 2px solid var(--px-line);
+  filter: saturate(1.05) contrast(1.04);
+}
+
+/* 进度 / 统计条：分段色块 */
+.bar-progress,
+.bc-stats .track,
+.stat .track {
+  background: var(--px-3) !important;
+  border: 2px solid var(--px-line) !important;
+  height: 12px !important;
+}
+
+.bar-progress > i,
+.bc-stats .track > i,
+.stat .track > i {
+  background:
+    repeating-linear-gradient(90deg, var(--px-amber) 0 6px, #a97c3d 6px 8px) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 悬浮播放条 ---------- */
+.playerbar {
+  background: var(--px-1) !important;
+  border: 2px solid var(--px-line) !important;
+  box-shadow: var(--px-shadow-lg) !important;
+  backdrop-filter: none !important;
+}
+
+.mini-name {
+  font-size: 24px !important;
+  color: var(--px-txt) !important;
+}
+
+.mini-artist {
+  font-size: 12px !important;
+}
+
+.bar-time {
+  color: var(--px-dim) !important;
+  font-variant-numeric: unset;
+}
+
+/* 音量滑杆：方块滑块 */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px !important;
+  background: var(--px-3) !important;
+  border: 2px solid var(--px-line) !important;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 14px;
+  background: var(--px-amber);
+  border: 2px solid #8a5f28;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---------- 沉浸舞台 ---------- */
+.stage {
+  background: var(--px-1) !important;
+}
+
+.stage-name,
+.stage-artist {
+  color: var(--px-txt) !important;
+}
+
+.lyrics,
+.lyrics * {
+  font-family: var(--pixel-font) !important;
+  font-size: 24px !important;
+  line-height: 1.5 !important;
+  color: var(--px-dim) !important;
+}
+
+.lyrics .cur,
+.lyrics .active {
+  color: var(--px-amber-hi) !important;
+}
+
+/* ---------- 搜索浮层 / 登录 / 弹窗 ---------- */
+.search-drop,
+.login-modal .login-card,
+.taste-card {
+  background: var(--px-1) !important;
+}
+
+.login-tab,
+.src-tab,
+.tab {
+  background: var(--px-2) !important;
+  border: 2px solid var(--px-line) !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+
+.login-tab.on,
+.src-tab.on,
+.tab.on,
+.chip-btn.on {
+  background: var(--px-amber) !important;
+  color: #1b1409 !important;
+  border-color: #8a5f28 !important;
+}
+
+.qr-wrap,
+.qr-status,
+.cookie-input,
+.xy-input,
+.tk-input {
+  background: var(--px-2) !important;
+  border: 2px solid var(--px-line) !important;
+}
+
+/* ---------- 侧栏 / 时钟 / 诗词 ---------- */
+.side-panel {
+  background: var(--px-1) !important;
+}
+
+.sp-clock {
+  color: var(--px-txt) !important;
+  font-variant-numeric: unset;
+}
+
+.sp-date,
+.sp-quote,
+.sp-poem {
+  color: var(--px-dim) !important;
+}
+
+.sp-quote {
+  border-left: 3px solid var(--px-amber) !important;
+  padding-left: 10px !important;
+}
+
+/* ---------- 滚动条：方块 ---------- */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--px-1);
+  border-left: 2px solid var(--px-line);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--px-4);
+  border: 2px solid var(--px-line);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--px-amber);
+}
+
+/* ---------- 杂项 ---------- */
+.badge,
+.acc-count,
+.b-veil,
+.tag,
+.pill {
+  border-radius: 0 !important;
+  font-size: 12px !important;
+}
+
+.acc-glyph {
+  background: var(--px-3) !important;
+  border: 2px solid var(--px-line) !important;
+  color: var(--px-amber) !important;
+}
+
+.tabbar {
+  background: var(--px-1) !important;
+  border-top: 2px solid var(--px-line) !important;
+  backdrop-filter: none !important;
+}
+
+.queue-mask,
+.model-mask,
+.login-modal {
+  background: rgba(4, 5, 7, .82) !important;
+  backdrop-filter: none !important;
+}
+
+/* 顶部「在线版服务」提示条 */
+.api-tip,
+#api-tip {
+  background: var(--px-2) !important;
+  border: 2px solid var(--px-line) !important;
+  font-size: 12px !important;
+}
+
+/* 动效：像素风不要缓慢缓动，改成阶梯 */
+.b-card,
+.rail-card,
+.cardIn,
+.side-panel > * {
+  animation-timing-function: steps(6, end) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ═══ 局部修正 ═══ */
+
+/* NEXT UP 是「一句话占位」，不做大标题 */
+.nu-name {
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  white-space: normal !important;
+}
+
+/* 主卡墨幕改硬边分块，照片上的文字才读得清，也更 8-bit */
+.b-veil,
+.bc-continue .b-veil {
+  background: linear-gradient(100deg, #08090c 0 54%, rgba(8,9,12,.88) 54% 63%, rgba(8,9,12,0) 86%) !important;
+}
+
+/* 纯像素风：装饰性巨幅汉字（卡片角标 / 侧栏水印）全部撤掉，
+   版面靠色块、边框和网格撑，不靠「墨字」 */
+.bc-glyph,
+.side-panel::after {
+  display: none !important;
+}
+
+.rail-card .rc-name,
+.pl-cell .pc-name {
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+}
+
+/* 横滑卡：长标题的 min-content 会把卡片撑宽，破坏 128px 的格律 */
+.rail-card,
+.pl-cell {
+  min-width: 0 !important;
+}
+
+.rail-card .rc-name,
+.rail-card .rc-sub {
+  max-width: 128px;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}

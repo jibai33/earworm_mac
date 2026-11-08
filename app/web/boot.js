@@ -1,7 +1,7 @@
 /* 闻曲 Earworm — 开机动画控制层
  *
  * 分工：视觉分镜与自动退场时序全部由 index.html 内联的 #boot-critical 样式驱动。
- * 即使本脚本加载失败或抛错，CSS 也会在约 1.58s 自动淡出并置为 hidden，
+ * 即使本脚本加载失败或抛错，CSS 也会在约 3.02s 自动擦除并置为 hidden，
  * 不会把用户挡在首页外面。这里只负责三件事：
  *   1) 随机一句诗（与首页侧栏同源）
  *   2) 跳过交互：点任意处 / 右上角透明按钮 / 任意键
@@ -28,7 +28,7 @@
 
   var reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   var START = Date.now();
-  var DURATION = reduce ? 0 : 1580;   // bootExit: 1.28s delay + .30s
+  var DURATION = reduce ? 0 : 3020;   // bootWipe: 2.80s delay + .22s
   var done = false;
   var timer = null;
 

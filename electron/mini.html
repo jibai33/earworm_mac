@@ -4,120 +4,120 @@
 <meta charset="UTF-8">
 <title>闻曲 · 迷你播放器</title>
 <style>
+  /* 像素风迷你播放器：与主窗口同一套色板与像素字，2px 实线边框 + 零圆角 */
+  @font-face {
+    font-family: 'Ark Pixel 12';
+    src: url('../app/web/fonts/ark-pixel-12.woff2') format('woff2');
+    font-display: block;
+  }
   :root {
-    --amber: #e6b06a;
-    --ink: #e9e4d8;
-    --dim: #8c9299;
-    --bg1: #161a21;
-    --bg2: #0b0d10;
-    --serif: "Noto Serif SC", "Songti SC", "STSong", serif;
-    --sans: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    --px-0: #08090c;
+    --px-1: #0e1014;
+    --px-2: #151920;
+    --px-3: #1d232c;
+    --px-line: #2b323d;
+    --px-txt: #eae4d6;
+    --px-dim: #98a0a8;
+    --px-amber: #e6b06a;
+    --px-amber-hi: #f6cd93;
+    --pixel-font: 'Ark Pixel 12', 'PingFang SC', monospace;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; height: 100%; overflow: hidden;
-    background: linear-gradient(158deg, var(--bg1), var(--bg2) 62%);
-    color: var(--ink); font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
+    background: var(--px-1);
+    color: var(--px-txt); font-family: var(--pixel-font);
+    -webkit-font-smoothing: none;
+    font-size: 12px; line-height: 1.6;
     user-select: none; cursor: default;
     -webkit-app-region: drag;
   }
+  /* CRT 扫描线 */
   body::before {
     content: '';
-    position: absolute; inset: 0; pointer-events: none;
-    background:
-      radial-gradient(120% 90% at 8% 0%, rgba(230,176,106,.13), transparent 62%),
-      radial-gradient(90% 80% at 100% 110%, rgba(143,184,174,.08), transparent 60%);
+    position: absolute; inset: 0; pointer-events: none; z-index: 9;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 2px, transparent 2px 4px);
   }
   .wrap {
     position: relative; height: 100%;
-    display: flex; align-items: center; gap: 13px;
-    padding: 0 16px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 14px;
   }
 
   /* 封面 */
   .cover-shell {
-    position: relative; width: 66px; height: 66px; flex: 0 0 66px;
-    border-radius: 12px; overflow: hidden;
-    background: #1b2028;
-    box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
+    position: relative; width: 64px; height: 64px; flex: 0 0 64px;
+    background: var(--px-2) center/cover no-repeat;
+    border: 2px solid var(--px-line);
+    box-shadow: 3px 3px 0 rgba(0,0,0,.85);
   }
-  .cover-shell img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; display: block; }
-  /* 没有封面时的墨底「聞」：不留空洞 */
+  .cover-shell img {
+    position: relative; z-index: 1; width: 100%; height: 100%;
+    object-fit: cover; display: block; image-rendering: pixelated;
+  }
+  /* 没有封面时的像素音符占位 */
   .cover-shell::before {
-    content: '聞';
-    position: absolute; inset: 0; display: grid; place-items: center;
-    font-family: var(--serif); font-size: 26px; color: rgba(230,176,106,.42);
-    background: radial-gradient(circle at 30% 24%, rgba(230,176,106,.10), transparent 68%);
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 11' shape-rendering='crispEdges'><g fill='%23e6b06a'><rect x='6' y='1' width='4' height='1'/><rect x='8' y='2' width='2' height='1'/><rect x='8' y='3' width='1' height='1'/><rect x='6' y='1' width='2' height='9'/><rect x='3' y='6' width='5' height='1'/><rect x='2' y='7' width='6' height='1'/><rect x='2' y='8' width='6' height='1'/><rect x='3' y='9' width='5' height='1'/></g></svg>") center / 44px 44px no-repeat;
+    opacity: .55;
   }
-  .cover-shell::after {
-    content: ''; position: absolute; inset: 0; border-radius: 12px;
-    box-shadow: inset 0 0 0 1px rgba(230,176,106,0);
-    transition: box-shadow .5s ease;
-  }
-  body.playing .cover-shell::after { box-shadow: inset 0 0 0 1px rgba(230,176,106,.38); }
+  body.playing .cover-shell { border-color: var(--px-amber); }
 
   /* 文本 */
   .meta { flex: 1 1 auto; min-width: 0; }
   .title {
-    font-family: var(--serif); font-size: 15px; font-weight: 600;
-    letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    color: #f4eee2;
+    font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--px-txt);
   }
   .artist {
-    margin-top: 3px; font-size: 11.5px; color: var(--dim);
+    font-size: 12px; color: var(--px-dim);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
-  .track {
-    margin-top: 9px; height: 14px; display: flex; align-items: center; gap: 8px;
-  }
+  /* 进度：分段色块 */
+  .track { margin-top: 6px; height: 16px; display: flex; align-items: center; gap: 8px; }
   .bar {
-    position: relative; flex: 1 1 auto; height: 3px; border-radius: 3px;
-    background: rgba(255,255,255,.09); cursor: pointer;
-    -webkit-app-region: no-drag;
+    position: relative; flex: 1 1 auto; height: 10px;
+    background: var(--px-2); border: 2px solid var(--px-line);
+    cursor: pointer; -webkit-app-region: no-drag;
   }
-  .bar:hover { height: 5px; }
+  .bar:hover { border-color: var(--px-amber); }
   .bar > i {
     position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
-    border-radius: 3px;
-    background: linear-gradient(90deg, rgba(230,176,106,.55), var(--amber));
-    box-shadow: 0 0 10px rgba(230,176,106,.35);
+    background: repeating-linear-gradient(90deg, var(--px-amber) 0 6px, transparent 6px 8px);
   }
-  .bar > b {
-    position: absolute; top: 50%; left: 0%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
-    border-radius: 50%; background: #f7e8ce; box-shadow: 0 0 8px rgba(230,176,106,.7);
-    opacity: 0; transition: opacity .2s ease;
-  }
-  .bar:hover > b { opacity: 1; }
-  .time { font-size: 10px; color: #6d747c; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .bar > b { display: none; }
+  .time { font-size: 12px; color: #7f8794; flex: 0 0 auto; }
 
   /* 控制 */
-  .controls { display: flex; align-items: center; gap: 4px; -webkit-app-region: no-drag; }
+  .controls { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
   button {
     -webkit-app-region: no-drag;
-    appearance: none; border: 0; background: transparent; color: #cfc9bd;
-    width: 30px; height: 30px; border-radius: 50%;
+    appearance: none; border: 2px solid transparent; border-radius: 0;
+    background: transparent; color: var(--px-dim);
+    width: 28px; height: 28px; padding: 0;
     display: grid; place-items: center; cursor: pointer;
-    transition: background .18s ease, color .18s ease, transform .12s ease;
+    transition: none;
   }
-  button:hover { background: rgba(255,255,255,.07); color: #fff; }
-  button:active { transform: scale(.93); }
-  button svg { width: 15px; height: 15px; fill: currentColor; }
+  button:hover { background: var(--px-3); border-color: var(--px-line); color: var(--px-txt); }
+  button:active { background: var(--px-2); }
+  button svg { width: 22px; height: 22px; fill: currentColor; shape-rendering: crispEdges; }
   .play {
-    width: 40px; height: 40px; margin: 0 2px;
-    background: radial-gradient(circle at 34% 26%, #f0c184, var(--amber) 58%, #c58f4b);
-    color: #221a10; box-shadow: 0 6px 16px rgba(230,176,106,.28), inset 0 1px 0 rgba(255,255,255,.45);
+    width: 36px; height: 36px;
+    background: var(--px-amber); color: #1b1409;
+    border-color: var(--px-amber-hi);
+    box-shadow: 3px 3px 0 rgba(0,0,0,.85);
   }
-  .play:hover { background: radial-gradient(circle at 34% 26%, #f6cd93, #eebd7c 58%, #cf9955); color: #1b1409; }
-  .play svg { width: 16px; height: 16px; }
+  .play:hover { background: var(--px-amber-hi); color: #1b1409; }
 
-  .divider { width: 1px; height: 38px; background: rgba(255,255,255,.09); margin: 0 8px; }
+  .divider { width: 2px; height: 34px; background: var(--px-line); margin: 0 6px; }
   .mini-actions { display: flex; flex-direction: column; gap: 2px; -webkit-app-region: no-drag; }
-  .mini-actions button { width: 26px; height: 22px; border-radius: 6px; color: #767d85; }
-  .mini-actions button:hover { color: var(--amber); }
-  .mini-actions svg { width: 13px; height: 13px; }
-  #pin.pinned { color: var(--amber); }
+  .mini-actions button { width: 24px; height: 22px; color: #767d85; }
+  .mini-actions button:hover { color: var(--px-amber); }
+  .mini-actions svg { width: 18px; height: 18px; }
+  #pin.pinned { color: var(--px-amber); }
 </style>
 </head>
 <body>
@@ -136,13 +136,13 @@
 
     <div class="controls">
       <button id="prev" title="上一首">
-        <svg viewBox="0 0 24 24"><path d="M6 5h2.4v14H6zM20 5.6v12.8c0 .8-.9 1.3-1.6.9L9.1 13c-.7-.4-.7-1.4 0-1.8l9.3-6.4c.7-.5 1.6 0 1.6.8z"/></svg>
+        <svg id="prev-icon" viewBox="0 0 11 11"></svg>
       </button>
       <button id="play" class="play" title="播放 / 暂停">
-        <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5.2v13.6c0 .8.9 1.3 1.6.9l10-6.8c.6-.4.6-1.4 0-1.8l-10-6.8C8.9 3.9 8 4.4 8 5.2z"/></svg>
+        <svg id="play-icon" viewBox="0 0 11 11"></svg>
       </button>
       <button id="next" title="下一首">
-        <svg viewBox="0 0 24 24"><path d="M15.6 5H18v14h-2.4zM4 5.6v12.8c0 .8.9 1.3 1.6.9L14.9 13c.7-.4.7-1.4 0-1.8L5.6 4.7C4.9 4.3 4 4.8 4 5.6z"/></svg>
+        <svg id="next-icon" viewBox="0 0 11 11"></svg>
       </button>
     </div>
 
@@ -150,13 +150,13 @@
 
     <div class="mini-actions">
       <button id="pin" title="置顶">
-        <svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+        <svg viewBox="0 0 11 11"><rect x="4" y="1" width="3" height="5"/><rect x="3" y="6" width="5" height="1"/><rect x="5" y="7" width="1" height="3"/></svg>
       </button>
       <button id="expand" title="打开主窗口">
-        <svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm16 0h-2V6h-3V4h5v5zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-5v-2h3z"/></svg>
+        <svg viewBox="0 0 11 11"><g><rect x="1" y="1" width="4" height="1"/><rect x="1" y="1" width="1" height="4"/><rect x="6" y="1" width="4" height="1"/><rect x="9" y="1" width="1" height="4"/><rect x="1" y="9" width="4" height="1"/><rect x="1" y="6" width="1" height="4"/><rect x="6" y="9" width="4" height="1"/><rect x="9" y="6" width="1" height="4"/></g></svg>
       </button>
       <button id="close" title="关闭迷你播放器">
-        <svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg>
+        <svg viewBox="0 0 11 11"><g><rect x="2" y="2" width="2" height="1"/><rect x="7" y="2" width="2" height="1"/><rect x="3" y="3" width="2" height="1"/><rect x="6" y="3" width="2" height="1"/><rect x="4" y="4" width="3" height="1"/><rect x="3" y="6" width="2" height="1"/><rect x="6" y="6" width="2" height="1"/><rect x="2" y="7" width="2" height="1"/><rect x="7" y="7" width="2" height="1"/></g></svg>
       </button>
     </div>
   </div>
@@ -170,8 +170,15 @@
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  const PLAY_PATH = 'M8 5.2v13.6c0 .8.9 1.3 1.6.9l10-6.8c.6-.4.6-1.4 0-1.8l-10-6.8C8.9 3.9 8 4.4 8 5.2z';
-  const PAUSE_PATH = 'M7 4h3.4v16H7zM13.6 4H17v16h-3.4z';
+  /* 控制图标：11×11 像素格，用矩形拼，和主界面同一套 8-bit 语言 */
+  const R = (list) => list.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('');
+  const ICON_PLAY = R([[4, 0, 1, 7], [5, 1, 1, 5], [6, 2, 1, 3], [7, 3, 1, 1]]);
+  const ICON_PAUSE = R([[3, 1, 2, 7], [6, 1, 2, 7]]);
+  const ICON_PREV = R([[2, 1, 2, 7], [7, 0, 1, 7], [6, 1, 1, 5], [5, 2, 1, 3], [4, 3, 1, 1]]);
+  const ICON_NEXT = R([[3, 0, 1, 7], [4, 1, 1, 5], [5, 2, 1, 3], [6, 3, 1, 1], [8, 1, 2, 7]]);
+
+  $('prev-icon').innerHTML = ICON_PREV;
+  $('next-icon').innerHTML = ICON_NEXT;
 
   let current = { duration: 0 };
 
@@ -186,7 +193,7 @@
     const cover = $('cover');
     if (state.cover && cover.getAttribute('src') !== state.cover) cover.src = state.cover;
 
-    $('play-icon').innerHTML = `<path d="${state.playing ? PAUSE_PATH : PLAY_PATH}"/>`;
+    $('play-icon').innerHTML = state.playing ? ICON_PAUSE : ICON_PLAY;
 
     const dur = state.duration || 0;
     const pos = Math.min(state.position || 0, dur || 0);

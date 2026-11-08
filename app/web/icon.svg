@@ -1,17 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" shape-rendering="crispEdges">
+  <!-- 闻曲 Earworm · 8-bit 图标
+       画布 = 32×32 像素网格，单格 16 单位。
+       音符是 11×11 的精灵图（与菜单栏图标同一套像素），放大 32 倍放置，
+       所以边缘全部落在整数格上，不会出现半像素。 -->
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f2c98a"/>
-      <stop offset="1" stop-color="#d99a4e"/>
-    </linearGradient>
+    <clipPath id="plate">
+      <path d="M32 0h448v32h32v448h-32v32H32v-32H0V32h32z"/>
+    </clipPath>
+    <!-- 11×11 八分音符精灵 -->
+    <g id="note">
+      <!-- 符尾 -->
+      <rect x="6" y="1" width="4" height="1"/>
+      <rect x="8" y="2" width="2" height="1"/>
+      <rect x="8" y="3" width="1" height="1"/>
+      <!-- 符干 -->
+      <rect x="6" y="1" width="2" height="9"/>
+      <!-- 符头 -->
+      <rect x="3" y="6" width="5" height="1"/>
+      <rect x="2" y="7" width="6" height="1"/>
+      <rect x="2" y="8" width="6" height="1"/>
+      <rect x="3" y="9" width="5" height="1"/>
+    </g>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#0f1216"/>
-  <!-- 墨迹弧 -->
-  <path d="M96 352 C 150 420, 320 430, 402 330" fill="none" stroke="url(#g)" stroke-width="26" stroke-linecap="round" opacity=".9"/>
+
+  <!-- 机壳 -->
+  <path d="M32 0h448v32h32v448h-32v32H32v-32H0V32h32z" fill="#0f1116"/>
+
+  <g clip-path="url(#plate)">
+    <!-- 内框：一格粗，离边 4 格 -->
+    <rect x="72" y="72" width="368" height="368" fill="none" stroke="#e6b06a" stroke-width="16" opacity=".7"/>
+  </g>
+
   <!-- 音符 -->
-  <circle cx="150" cy="356" r="40" fill="url(#g)"/>
-  <rect x="180" y="180" width="26" height="180" rx="13" fill="url(#g)"/>
-  <path d="M206 180 C 250 168, 292 150, 306 118 L 306 156 C 292 186, 250 198, 206 210 Z" fill="url(#g)" opacity=".95"/>
-  <!-- 雅意一点 -->
-  <circle cx="352" cy="256" r="14" fill="#f2c98a" opacity=".8"/>
+  <g transform="translate(64 80) scale(32)" fill="#e6b06a">
+    <use href="#note"/>
+  </g>
 </svg>
