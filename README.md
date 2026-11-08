@@ -135,6 +135,7 @@ build/                # 图标、entitlements
 npm run icons      # 重新生成图标（需要本机 Chrome）
 npm run build:mac  # 产出 dist/*.dmg 与 *.zip（arm64 + x64）
 npm run build:dir  # 只产出 dist/mac*/闻曲.app，便于本地验证
+npm run build:dir:offline  # 网络不稳时用本地 electron 副本打包（-c.electronDist）
 ```
 
 未配置签名证书时，首次打开需右键 →「打开」，或执行：

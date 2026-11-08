@@ -2,7 +2,7 @@
   "name": "earworm-mac",
   "productName": "闻曲",
   "version": "1.0.0",
-  "description": "闻曲 Earworm · macOS 桌面版 —— 国风沉浸式音乐播放器（Electron 壳 + 本地音源服务）",
+  "description": "闻曲 Earworm · macOS 桌面版 —— 像素风音乐播放器（Electron 壳 + 本地音源服务）",
   "author": "jibai33",
   "license": "GPL-3.0-only",
   "private": true,
@@ -13,7 +13,8 @@
     "server": "node app/server.js",
     "icons": "node scripts/make-icons.js",
     "build:mac": "electron-builder --mac dmg zip",
-    "build:dir": "electron-builder --mac dir"
+    "build:dir": "electron-builder --mac dir",
+    "build:dir:offline": "electron-builder --mac dir -c.electronDist=node_modules/electron/dist"
   },
   "dependencies": {
     "NeteaseCloudMusicApi": "^4.32.0",
