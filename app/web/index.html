@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="booting">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>闻曲 Earworm · 听曲知雅意</title>
+<meta name="theme-color" content="#0b0d10">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<!-- 开机画面的关键样式内联：外链 CSS 到达之前就能画出墨底与印章，避免白屏闪一下 -->
+<style id="boot-critical">
+  html, body { background: #0b0d10; }
+  #boot {
+    position: fixed; inset: 0; z-index: 9999; overflow: hidden; isolation: isolate;
+    display: flex; align-items: center; justify-content: center;
+    background: #0b0d10;
+    animation: bootExit .30s ease 1.28s forwards;
+  }
+  #boot::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background-image: radial-gradient(rgba(255,255,255,.022) 1px, transparent 1px);
+    background-size: 5px 5px;
+  }
+  .boot-wash { position: absolute; inset: -20%; pointer-events: none; }
+  .boot-wash.w1 {
+    background: radial-gradient(circle at 50% 46%, rgba(230,176,106,.24), rgba(230,176,106,.07) 34%, transparent 66%);
+    animation: bootInkBloom 1.6s ease-out both;
+  }
+  /* 与首页侧栏同源的巨型「聞」水印：给留白一层墨底，揭开后视觉不断裂 */
+  .boot-watermark {
+    position: absolute; z-index: 1; left: 50%; top: 50%;
+    transform: translate(-50%, -48%); pointer-events: none;
+    font-family: "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
+    font-size: min(46vw, 420px); line-height: 1; color: rgba(233,228,216,.055);
+    animation: bootWatermark 1.5s ease-out both;
+  }
+  .boot-wash.w2 {
+    background: radial-gradient(circle at 62% 62%, rgba(143,184,174,.13), transparent 60%);
+    animation: bootDrift 1.5s ease-out both;
+  }
+  .boot-blots { position: absolute; inset: 0; pointer-events: none; }
+  .boot-blots i { position: absolute; display: block; border-radius: 50%; opacity: 0; }
+  .boot-blots i:nth-child(1) { width: 240px; height: 240px; left: 32%; top: 26%;
+    background: radial-gradient(circle, rgba(230,176,106,.20), transparent 70%); animation: bootBlot 1.45s ease-out .05s both; }
+  .boot-blots i:nth-child(2) { width: 180px; height: 180px; left: 56%; top: 52%;
+    background: radial-gradient(circle, rgba(143,184,174,.17), transparent 70%); animation: bootBlot 1.50s ease-out .22s both; }
+  .boot-blots i:nth-child(3) { width: 150px; height: 150px; left: 24%; top: 60%;
+    background: radial-gradient(circle, rgba(192,57,43,.13), transparent 70%); animation: bootBlot 1.35s ease-out .34s both; }
+  .boot-inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .boot-seal {
+    position: relative; width: 100px; height: 100px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
+    font-size: 60px; line-height: 1; color: #f7ecda;
+    background: linear-gradient(155deg, #d2493a, #b33126);
+    box-shadow: 0 12px 40px rgba(192,57,43,.42), inset 0 1px 0 rgba(255,255,255,.24), inset 0 0 0 1px rgba(255,255,255,.08);
+    animation: bootSealDrop .62s cubic-bezier(.16,1.12,.3,1) .06s both;
+  }
+  .boot-seal::after {
+    content: ''; position: absolute; inset: -14px; border-radius: 50%;
+    border: 1px solid rgba(230,176,106,.32); pointer-events: none;
+    animation: bootRipple .86s ease-out .30s both;
+  }
+  .boot-rule {
+    width: 200px; height: 1px; margin-top: 26px;
+    background: linear-gradient(90deg, transparent, rgba(230,176,106,.85), transparent);
+    animation: bootRuleGrow .46s cubic-bezier(.2,.8,.3,1) .44s both;
+  }
+  .boot-poem {
+    margin-top: 20px; white-space: nowrap;
+    font-family: "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
+    font-size: 18px; letter-spacing: .16em; color: #e9e4d8;
+    animation: bootPoemRise .52s ease-out .58s both;
+  }
+  .boot-brand {
+    margin-top: 14px; font-size: 10px; letter-spacing: .32em; color: rgba(230,176,106,.62);
+    animation: bootBrandIn .44s ease-out .74s both;
+  }
+  .boot-skip {
+    position: absolute; z-index: 3; top: max(18px, env(safe-area-inset-top)); right: 22px;
+    background: transparent; border: 1px solid rgba(255,255,255,.14); border-radius: 999px;
+    color: rgba(233,228,216,.5); font-size: 11px; letter-spacing: .1em;
+    padding: 7px 14px; cursor: pointer; opacity: 0;
+    animation: bootFadeIn .40s ease .30s forwards;
+    transition: color .18s, border-color .18s, background .18s;
+  }
+  .boot-skip:hover, .boot-skip:focus-visible {
+    color: #e9e4d8; border-color: rgba(230,176,106,.6); background: rgba(230,176,106,.08); outline: none;
+  }
+  .boot-progress {
+    position: absolute; bottom: max(34px, env(safe-area-inset-bottom)); left: 50%;
+    transform: translateX(-50%); width: 120px; height: 1px;
+    background: rgba(255,255,255,.10); overflow: hidden;
+  }
+  .boot-progress i {
+    display: block; height: 100%; width: 100%; transform-origin: left center;
+    background: linear-gradient(90deg, rgba(230,176,106,.35), #e6b06a);
+    animation: bootProgress 1.28s linear both;
+  }
+  /* 跳过：覆盖掉 bootExit 的 1.28s 延时，立刻收场 */
+  #boot.is-skipped { animation: bootSkip .16s ease forwards !important; }
+  #boot.is-done { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+  @keyframes bootExit { to { opacity: 0; visibility: hidden; pointer-events: none; transform: scale(1.02); } }
+  @keyframes bootSkip { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+  @keyframes bootInkBloom { from { opacity: 0; transform: scale(.72); } 55% { opacity: 1; } to { opacity: .85; transform: scale(1.06); } }
+  @keyframes bootDrift { from { opacity: 0; transform: translate3d(-4%,3%,0) scale(.9); } to { opacity: 1; transform: none; } }
+  @keyframes bootBlot { 0% { opacity: 0; transform: scale(.4); } 45% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+  @keyframes bootSealDrop {
+    from { opacity: 0; transform: rotate(-2deg) scale(1.24); filter: blur(9px); }
+    60%  { opacity: 1; }
+    to   { opacity: 1; transform: rotate(-2deg) scale(1); filter: blur(0); }
+  }
+  @keyframes bootWatermark { from { opacity: 0; transform: translate(-50%,-48%) scale(.9); } to { opacity: 1; transform: translate(-50%,-48%) scale(1); } }
+  @keyframes bootRipple { from { opacity: .6; transform: scale(.82); } to { opacity: 0; transform: scale(1.9); } }
+  @keyframes bootRuleGrow { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+  @keyframes bootPoemRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes bootBrandIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @keyframes bootFadeIn { to { opacity: 1; } }
+  @keyframes bootProgress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @media (max-width: 600px) {
+    .boot-seal { width: 84px; height: 84px; font-size: 50px; }
+    .boot-rule { width: 150px; margin-top: 22px; }
+    .boot-poem { font-size: 15px; letter-spacing: .1em; white-space: normal; max-width: 86vw; line-height: 1.9; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #boot { display: none !important; }
+  }
+</style>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<!-- ══ 开机动画：国风墨染 · 印章浮现 ══
+     纯 CSS 自动播完并退场（JS 失效也不会挡住首页），boot.js 只负责跳过、诗词与收尾清理 -->
+<div id="boot" role="status" aria-label="闻曲 · 正在展开曲卷">
+  <div class="boot-wash w1" aria-hidden="true"></div>
+  <div class="boot-wash w2" aria-hidden="true"></div>
+  <div class="boot-blots" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="boot-watermark" aria-hidden="true">聞</div>
+  <div class="boot-inner" aria-hidden="true">
+    <div class="boot-seal">聞</div>
+    <div class="boot-rule"></div>
+    <div class="boot-poem" id="boot-poem">此曲只应天上有，人间能得几回闻。</div>
+    <div class="boot-brand">EARWORM · 听曲知雅意</div>
+  </div>
+  <button id="boot-skip" class="boot-skip" type="button" aria-label="跳过开场动画">跳过 ›</button>
+  <div class="boot-progress" aria-hidden="true"><i></i></div>
+</div>
+<script src="./boot.js"></script>
+
+<canvas id="ambient" aria-hidden="true"></canvas>
+
+<!-- ══ 顶栏（全局）：品牌 + 悬浮搜索 + 用户 ══ -->
+<header class="topbar" id="topbar">
+  <div class="brand-mark" id="nav-home">
+    <span class="seal">闻曲</span>
+    <span class="brand-sub">EARWORM · 听曲知雅意</span>
+  </div>
+
+  <div class="search-pill" id="search-pill">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="search-input" type="search" placeholder="搜一首歌、一位歌手……" autocomplete="off">
+  </div>
+
+  <div class="topbar-right">
+    <button id="account-btn" class="source-btn" aria-label="音源连接" title="查看 / 连接各平台音源">
+      <span class="acc-glyph">源</span><span class="acc-count" id="account-count">0/4</span>
+    </button>
+    <button id="nav-mine" class="orb-btn" aria-label="曲库">曲</button>
+    <div class="topbar-user" id="topbar-user" hidden>
+      <img id="user-avatar" alt="">
+      <span id="user-name"></span>
+    </div>
+    <button id="login-btn" class="brush-btn" hidden>登录</button>
+  </div>
+</header>
+
+<!-- ══ 搜索下拉面板（桌面浮层 / 移动全屏页） ══ -->
+<div id="page-search" class="search-drop" hidden>
+  <div class="src-tabs" id="src-tabs">
+    <button class="src-tab cur all-src" data-src="all">全部音源</button>
+    <button class="src-tab" data-src="netease">云村</button>
+    <button class="src-tab" data-src="qishui">汽水</button>
+    <button class="src-tab" data-src="qq">QQ</button>
+    <button class="src-tab" data-src="xy">小宇宙</button>
+  </div>
+  <!-- 全域检索时逐平台回报：谁有结果、谁待连接、谁出错 -->
+  <div id="search-source-summary" class="search-source-summary" hidden></div>
+  <!-- ══ 个性化推荐：空查询态展示，来自 Web / Mac / iOS 共用的听感画像 ══ -->
+  <section id="taste-rec" class="taste-rec" hidden>
+    <div class="tr-head">
+      <div class="tr-title">
+        <div class="tr-h">知音 · 为你而鸣</div>
+        <div class="tr-sub" id="tr-sub">正在读取你的听感画像……</div>
+      </div>
+      <div class="tr-actions">
+        <button id="tr-refresh" class="tr-btn">换一批</button>
+        <button id="tr-settings" class="tr-btn ghost">偏好设置</button>
+      </div>
+    </div>
+    <div class="tr-signals" id="tr-signals"></div>
+    <div class="tr-hero" id="tr-hero"></div>
+    <div class="tr-cards" id="tr-cards"></div>
+    <div class="tr-list" id="tr-list"></div>
+    <div class="tr-foot">
+      <span id="tr-foot-note">推荐每小时更新 · 记录仅用于生成推荐</span>
+      <button id="tr-off" class="tr-link">关闭个性化</button>
+    </div>
+  </section>
+
+  <div id="search-history-wrap" class="hist-wrap">
+    <div class="hist-head"><span class="sec-title small">曾闻</span><button id="hist-clear" class="text-btn">清空</button></div>
+    <div id="search-history" class="chips"></div>
+  </div>
+  <div id="results" class="results"></div>
+  <div id="more-btn-wrap" hidden><button id="more-btn" class="brush-btn">再听一页</button></div>
+</div>
+
+<!-- ══ 发现页（时间面板 + bento） ══ -->
+<div id="page-discover" class="page home">
+  <aside class="side-panel">
+    <div class="sp-date" id="home-date">—</div>
+    <div class="sp-clock" id="home-clock">00:00</div>
+    <div class="sp-quote" id="poem-line">此曲只应天上有，人间能得几回闻。</div>
+    <div class="sp-actions">
+      <button id="poem-shuffle" class="chip-btn">换一条</button>
+      <button id="daily-play" class="chip-btn accent">听今日推荐</button>
+    </div>
+  </aside>
+
+  <main class="bento">
+    <!-- 继续听 / 开始听歌 -->
+    <div class="b-row">
+    <section class="b-card bc-continue" id="bento-continue" role="button" tabindex="0">
+      <img id="hero-cover" alt="" loading="lazy">
+      <div class="b-veil"></div>
+      <div class="bc-info">
+        <div class="b-kicker" id="bc-kicker">CONTINUE · 开始听歌</div>
+        <div class="bc-name" id="hero-name"></div>
+        <div class="bc-sub" id="hero-artist"></div>
+      </div>
+      <button class="orb-play" id="hero-play" aria-label="播放">▶</button>
+    </section>
+
+    <!-- 曲库 / 日日新 / 最近 -->
+    <section class="b-card bc-mini" id="bento-library" role="button" tabindex="0">
+      <div class="b-kicker">LIBRARY · 曲库</div>
+      <div class="bc-big">曲库</div>
+      <div class="bc-sub" id="lib-sub">登录后同步歌单</div>
+      <div class="bc-glyph">册</div>
+    </section>
+    <section class="b-card bc-mini" id="bento-daily" role="button" tabindex="0">
+      <div class="b-kicker">DAILY · 日日新</div>
+      <div class="bc-big">日日新</div>
+      <div class="bc-sub">每日推荐 · 尽兴而听</div>
+      <div class="bc-glyph">新</div>
+    </section>
+    <section class="b-card bc-mini" id="bento-recent" role="button" tabindex="0">
+      <div class="b-kicker">RECENT · 最近</div>
+      <div class="bc-big">最近</div>
+      <div class="bc-sub" id="recent-sub">接着上次继续</div>
+      <div class="bc-glyph">续</div>
+    </section>
+    </div>
+
+    <!-- 今日聆听 + 待播 -->
+    <div class="b-row2">
+    <section class="b-card bc-stats">
+      <div class="b-kicker">LISTENING TODAY · 今日聆听 <span class="k-right" id="stat-date"></span></div>
+      <div class="stats-row">
+        <div class="stat"><b id="stat-min">0</b><span>分钟</span><i>今日时长</i></div>
+        <div class="stat"><b id="stat-cnt">0</b><span>首</span><i>今日曲目</i></div>
+        <div class="stat wide"><b id="stat-last">等待记录</b><i>开始播放后自动生成</i></div>
+      </div>
+    </section>
+    <section class="b-card bc-nextup" id="bento-nextup" role="button" tabindex="0">
+      <div class="b-kicker">NEXT UP · 接下来</div>
+      <div class="nu-cover" id="nu-cover"></div>
+      <div class="nu-info">
+        <div class="nu-name" id="nu-name">队列里还没有歌曲</div>
+        <div class="nu-sub" id="nu-sub">点开一首试试耳朵</div>
+      </div>
+      <span class="nu-arrow">›</span>
+    </section>
+    </div>
+
+    <!-- 为你推荐 -->
+    <section class="b-card bc-rail" id="daily-rail-section" hidden>
+      <div class="b-kicker">FOR YOU · 为你读谱 <button id="hero-shuffle" class="chip-btn ghost">换一首</button></div>
+      <div class="rail" id="daily-rail"></div>
+    </section>
+
+    <!-- 拾遗歌单 -->
+    <section class="b-card bc-discover" id="pl-grid-section" hidden>
+      <div class="b-kicker">DISCOVER · 拾遗</div>
+      <div class="pl-grid" id="pl-grid"></div>
+    </section>
+
+    <!-- 一屏尽听：四平台音源与信息同屏，登录后无需再切平台 -->
+    <section class="b-card bc-unified" id="unified-section" hidden>
+      <div class="b-kicker">ALL SOURCES · 一屏尽听
+        <button id="unified-refresh" class="chip-btn ghost">重新汇聚</button>
+      </div>
+      <div id="unified-bar" class="unified-bar"></div>
+      <div id="unified-home" class="unified-home"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ══ 曲库页 ══ -->
+<div id="page-mine" class="page mine" hidden>
+  <div id="mine-user" class="mine-card" hidden>
+    <img id="mine-avatar" alt="">
+    <div class="mine-meta">
+      <div class="mine-name" id="mine-name"></div>
+      <div class="mine-vip" id="mine-vip"></div>
+    </div>
+  </div>
+  <div id="mine-login-tip" class="mine-card login-tip-card" hidden>
+    <p>登录后听自己的曲库</p>
+    <button class="brush-btn" onclick="document.getElementById('login-btn').click()">去登录</button>
+  </div>
+  <button id="logout-btn" class="brush-btn danger" onclick="logout()" hidden>退出登录</button>
+  <section id="collect-section" hidden>
+    <h2 class="sec-title">收藏 <span class="sec-en">COLLECTED</span></h2>
+    <div id="collect-list" class="results"></div>
+  </section>
+  <!-- 多方曲库：网易云歌单 + 汽水歌单 + 小宇宙订阅，按平台分组 -->
+  <section id="unified-library-wrap" class="unified-library-wrap">
+    <h2 class="sec-title">多方曲库 <span class="sec-en">ALL LIBRARIES</span>
+      <button id="lib-refresh" class="text-btn">刷新</button>
+    </h2>
+    <div id="unified-library"></div>
+  </section>
+  <div id="legacy-library" hidden>
+    <h2 class="sec-title">曲库 <span class="sec-en">MY PLAYLISTS</span></h2>
+    <div id="my-playlists" class="pl-list"></div>
+  </div>
+</div>
+
+<!-- ══ 歌单详情页 ══ -->
+<div id="pl-detail" class="pl-detail" hidden>
+  <button id="pl-back" class="icon-btn pl-back" aria-label="返回">←</button>
+  <div class="pl-head">
+    <img id="pl-cover" alt="">
+    <div class="pl-head-meta">
+      <div class="pl-name" id="pl-name"></div>
+      <div class="pl-count" id="pl-count"></div>
+    </div>
+    <button id="pl-playall" class="brush-btn solid">全部播放</button>
+  </div>
+  <div id="pl-tracks" class="results"></div>
+</div>
+
+<!-- ══ 底部导航（移动端） ══ -->
+<nav class="tabbar" id="tabbar">
+  <button class="tab cur" data-page="page-discover"><span class="tab-cn">发现</span></button>
+  <button class="tab" data-page="page-search"><span class="tab-cn">搜曲</span></button>
+  <button class="tab" data-page="page-mine"><span class="tab-cn">曲库</span></button>
+</nav>
+
+<!-- ══ 悬浮播放条 ══ -->
+<div id="mini" class="playerbar" hidden>
+  <div id="mini-progress" class="bar-progress"><i></i></div>
+  <img id="mini-cover" alt="">
+  <div class="mini-meta" id="mini-meta">
+    <div id="mini-name" class="mini-name"></div>
+    <div id="mini-artist" class="mini-artist"></div>
+  </div>
+  <div class="bar-center">
+    <button id="mini-like" class="icon-btn heart" aria-label="喜欢">♡</button>
+    <button id="prev" class="icon-btn bar-ico" aria-label="上一首">⏮</button>
+    <button id="mini-toggle" class="orb-play sm" aria-label="播放/暂停"><span id="mini-icon">▶</span></button>
+    <button id="next" class="icon-btn bar-ico" aria-label="下一首">⏭</button>
+    <button id="mini-expand" class="icon-btn bar-ico" aria-label="展开">⌃</button>
+  </div>
+  <div class="bar-right">
+    <button id="mode-btn" class="icon-btn bar-ico" aria-label="播放模式"><span id="mode-icon">⇉</span></button>
+    <button id="queue-btn" class="icon-btn bar-ico" aria-label="播放队列">☰</button>
+    <button id="bar-lyric" class="icon-btn bar-ico" aria-label="歌词">词</button>
+    <div class="vol" id="vol-wrap">
+      <span class="vol-ico">🔈</span>
+      <input id="bar-vol" type="range" min="0" max="100" value="100">
+    </div>
+    <span id="bar-time" class="bar-time">0:00 / 0:00</span>
+  </div>
+</div>
+
+<!-- ══ 沉浸播放页 ══ -->
+<div id="stage" class="stage" hidden>
+  <div class="stage-bg" id="stage-bg"></div>
+  <canvas id="ink" aria-hidden="true"></canvas>
+  <canvas id="spectrum" aria-hidden="true"></canvas>
+  <div class="stage-side" aria-hidden="true">余音绕梁 · 三日不绝</div>
+  <button id="stage-close" class="icon-btn stage-close" aria-label="收起">⌄</button>
+  <div class="stage-head">
+    <div id="stage-name" class="stage-name"></div>
+    <div id="stage-artist" class="stage-artist"></div>
+    <div class="stage-badges"><span id="quality-badge" class="badge" hidden></span><span id="fee-badge" class="badge" hidden>VIP</span></div>
+  </div>
+  <div class="stage-body">
+    <div class="cover-wrap"><div class="cover-ring"></div><img id="stage-cover" alt=""></div>
+    <div id="lyrics" class="lyrics"></div>
+  </div>
+  <div class="controls">
+    <div class="progress-row">
+      <span id="t-cur">0:00</span>
+      <input id="seek" type="range" min="0" max="1000" value="0">
+      <span id="t-dur">0:00</span>
+    </div>
+    <div class="btn-row sub-btn-row">
+      <button id="rate-btn" class="icon-btn small" aria-label="倍速"><span id="rate-icon">1×</span></button>
+      <button id="comment-btn" class="icon-btn small" aria-label="评论">💬</button>
+    </div>
+    <div class="btn-row">
+      <button id="like-btn" class="icon-btn heart big-heart" aria-label="喜欢">♡</button>
+      <button id="stage-prev" class="icon-btn big" aria-label="上一首">⏮</button>
+      <button id="toggle" class="icon-btn play" aria-label="播放/暂停"><span id="play-icon">▶</span></button>
+      <button id="stage-next" class="icon-btn big" aria-label="下一首">⏭</button>
+      <button id="quality-btn" class="icon-btn" aria-label="音质">♪</button>
+      <button id="stage-mode" class="icon-btn" aria-label="播放模式"><span id="stage-mode-icon">⇉</span></button>
+      <button id="stage-queue" class="icon-btn" aria-label="播放队列">☰</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 队列抽屉 ══ -->
+<div id="queue-drawer" class="queue-drawer" hidden>
+  <div class="queue-head"><span class="sec-title small">曲目 <span class="sec-en">QUEUE</span></span><button id="queue-close" class="icon-btn">✕</button></div>
+  <div id="queue-list" class="queue-list"></div>
+</div>
+<div id="queue-mask" class="queue-mask" hidden></div>
+
+<!-- ══ 评论抽屉 ══ -->
+<div id="comment-drawer" class="queue-drawer" hidden>
+  <div class="queue-head"><span class="sec-title small">评论 <span class="sec-en">COMMENTS</span></span><button id="comment-close" class="icon-btn">✕</button></div>
+  <div id="comment-list" class="comment-list"></div>
+</div>
+<div id="comment-mask" class="queue-mask" hidden></div>
+
+<!-- ══ 音质菜单 ══ -->
+<div id="quality-menu" class="quality-menu" hidden>
+  <div class="q-head">音质 <button id="quality-close" class="icon-btn">✕</button></div>
+  <div id="q-list"></div>
+</div>
+<div id="q-mask" class="queue-mask" hidden onclick="document.getElementById('quality-menu').hidden=true"></div>
+
+<!-- ══ 登录弹窗（多平台） ══ -->
+<div id="login-modal" class="login-modal" hidden>
+  <div class="login-card">
+    <span class="seal seal-sm">闻曲</span>
+    <div class="login-tabs" id="login-tabs">
+      <button class="login-tab cur" data-lp="all">音源总览</button>
+      <button class="login-tab" data-lp="netease">云村</button>
+      <button class="login-tab" data-lp="qishui">汽水</button>
+      <button class="login-tab" data-lp="qq">QQ</button>
+      <button class="login-tab" data-lp="xy">小宇宙</button>
+    </div>
+
+    <!-- 总览：一次看清四平台连接状态，逐个授权后全站自动汇聚 -->
+    <div id="lp-all">
+      <h2>一次连接 · 四平台同听</h2>
+      <p class="login-tip">每个平台账号只需授权一次；之后曲库、推荐、搜索会自动汇聚到同一屏，不用再来回切换。</p>
+      <div id="account-overview" class="account-overview"></div>
+      <div id="account-overview-note" class="qr-status">正在检测各平台连接状态…</div>
+      <div class="qr-actions">
+        <button id="account-connect-next" class="brush-btn solid">连接下一个音源</button>
+        <button id="account-refresh" class="brush-btn">重新检测</button>
+      </div>
+    </div>
+
+    <!-- 网易云：扫码 -->
+    <div id="lp-netease" hidden>
+      <h2>扫码登录 · 网易云</h2>
+      <p class="login-tip">用网易云音乐 App 扫一扫</p>
+      <div class="qr-wrap"><img id="qr-img" alt="登录二维码"></div>
+      <div class="qr-actions"><button id="qr-refresh" class="brush-btn">刷新二维码</button></div>
+      <div id="qr-status" class="qr-status">正在生成二维码…</div>
+    </div>
+
+    <!-- 汽水：抖音 App 扫码 -->
+    <div id="lp-qishui" hidden>
+      <h2>扫码登录 · 汽水音乐</h2>
+      <p class="login-tip">用 <b>抖音 App</b> 扫下面的二维码，在手机上确认后凭据自动存到本机</p>
+      <div class="qr-wrap"><img id="qishui-qr-img" alt="抖音扫码二维码"></div>
+      <div class="qr-actions">
+        <button id="qishui-qr-refresh" class="brush-btn solid">生成 / 刷新二维码</button>
+        <button id="qishui-qr-clear" class="brush-btn danger">退出</button>
+      </div>
+      <div id="qishui-qr-status" class="qr-status">点上面按钮生成二维码</div>
+      <details class="xy-manual">
+        <summary>扫码不可用？手动粘贴 cookie</summary>
+        <textarea id="qishui-cookie-input" class="cookie-input" rows="2" placeholder="粘贴汽水 cookie……"></textarea>
+        <button id="qishui-cookie-save" class="brush-btn">保存凭据</button>
+      </details>
+      <div id="qishui-cookie-status" class="qr-status">未查询登录态</div>
+    </div>
+
+    <!-- QQ 音乐：三条扫码通道 + VIP 播放授权 -->
+    <div id="lp-qq" hidden>
+      <h2>扫码登录 · QQ 音乐</h2>
+      <p class="login-tip">任选一条通道扫码；登录成功后凭据自动存到本机，并解锁 VIP / 无损曲目的播放授权</p>
+      <div class="qq-channels" id="qq-channels">
+        <button class="qq-channel cur" data-qq-channel="qq">手机 QQ</button>
+        <button class="qq-channel" data-qq-channel="wechat">微信</button>
+        <button class="qq-channel" data-qq-channel="qqmusic">QQ 音乐 App</button>
+      </div>
+      <div class="qr-wrap"><img id="qq-qr-img" alt="QQ 音乐登录二维码"></div>
+      <div class="qr-actions">
+        <button id="qq-qr-refresh" class="brush-btn solid">生成 / 刷新二维码</button>
+        <button id="qq-qr-clear" class="brush-btn danger">退出</button>
+      </div>
+      <div id="qq-qr-status" class="qr-status">正在生成二维码…</div>
+      <div id="qq-vip-status" class="qq-vip-status">正在检查 VIP 播放授权…</div>
+      <details class="xy-manual">
+        <summary>扫码不可用？手动粘贴 cookie（需含 uin 与 qm_keyst）</summary>
+        <p class="login-tip">在电脑浏览器打开 y.qq.com 并登录，F12 → Network 任意请求的 Cookie 头，整段复制粘贴</p>
+        <textarea id="qq-cookie-input" class="cookie-input" rows="3" placeholder="粘贴 QQ 音乐 cookie（含 uin 与 qm_keyst）……"></textarea>
+        <button id="qq-cookie-save" class="brush-btn">保存凭据</button>
+      </details>
+      <div id="qq-cookie-status" class="qr-status">未查询登录态</div>
+    </div>
+
+    <!-- 小宇宙：手机号 + 短信验证码 -->
+    <div id="lp-xy" hidden>
+      <h2>登录 · 小宇宙</h2>
+      <p class="login-tip">手机号收验证码，验证通过后自动换取凭据并存到本机</p>
+
+      <div class="xy-sms">
+        <label class="xy-label" for="xy-phone">壹 · 手机号</label>
+        <div class="xy-phone-row">
+          <select id="xy-area" class="xy-input xy-area" aria-label="区号">
+            <option value="+86">+86</option>
+            <option value="+852">+852</option>
+            <option value="+886">+886</option>
+            <option value="+1">+1</option>
+            <option value="+81">+81</option>
+            <option value="+44">+44</option>
+          </select>
+          <input id="xy-phone" class="xy-input" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="请输入手机号" maxlength="20">
+        </div>
+
+        <label class="xy-label" for="xy-code">贰 · 短信验证码</label>
+        <div class="xy-code-row">
+          <input id="xy-code" class="xy-input" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="收到的数字验证码" maxlength="8">
+          <button id="xy-send" class="brush-btn xy-send">获取验证码</button>
+        </div>
+
+        <div class="cookie-row">
+          <button id="xy-sms-login" class="brush-btn solid">叁 · 登录并保存</button>
+          <button id="xy-token-clear" class="brush-btn danger">退出</button>
+        </div>
+      </div>
+
+      <div id="xy-captcha-tip" class="xy-captcha" hidden>
+        <b>发码需要一次人机验证</b>
+        <p>小宇宙官网在发送短信前要求滑块验证，这一步只能在官方域名完成。点下面按钮去官网发码，收到短信后回来填验证码即可——换凭据和保存由闻曲自动完成。</p>
+        <button id="xy-open-official" class="brush-btn xy-open">去官网获取验证码 ↗</button>
+      </div>
+
+      <details class="xy-manual">
+        <summary>已经登录官网？手动粘贴 token</summary>
+        <textarea id="xy-token-input" class="cookie-input" rows="2" placeholder="粘贴 x-jike-access-token……（整段请求头也能识别）"></textarea>
+        <button id="xy-token-save" class="brush-btn">保存凭据</button>
+      </details>
+
+      <div id="xy-token-status" class="qr-status">未查询登录态</div>
+      <p class="xy-note">凭据只存在本机，不会上传；过期后重新用验证码登录一次即可</p>
+    </div>
+
+    <button id="login-close" class="brush-btn">关闭</button>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata"></audio>
+<!-- ══ 听感画像设置（同步码 / 跨端 / 隐私） ══ -->
+<div id="taste-modal" class="login-modal" hidden>
+  <div class="login-card taste-card">
+    <span class="seal seal-sm">闻曲</span>
+    <h2>听感画像 · 偏好设置</h2>
+    <p class="login-tip">同一个同步码，Web / Mac / iPhone 共用一份画像。在另一端填入这枚码即可接续。</p>
+    <div class="tk-row">
+      <div class="tk-label">我的同步码</div>
+      <div class="tk-code" id="tk-code">—</div>
+      <button id="tk-copy" class="brush-btn">复制</button>
+      <button id="tk-new" class="brush-btn">换一枚</button>
+    </div>
+    <div class="tk-row">
+      <div class="tk-label">接入另一台设备</div>
+      <input id="tk-input" class="tk-input" placeholder="输入对方显示的 EW-XXXX-XXXX-XXXX" autocomplete="off">
+      <button id="tk-bind" class="brush-btn solid">绑定并合并画像</button>
+    </div>
+    <div class="tk-status" id="tk-status"></div>
+    <div class="tk-actions">
+      <label class="tk-switch"><input type="checkbox" id="tk-enabled" checked> 记录收听 / 搜索 / 浏览</label>
+      <button id="tk-export" class="brush-btn">导出我的数据</button>
+      <button id="tk-clear" class="brush-btn danger">清除记录</button>
+      <button id="tk-close" class="brush-btn solid">完成</button>
+    </div>
+  </div>
+</div>
+
+<script src="./taste.js"></script>
+<script src="./app.js"></script>
+<script src="./taste-ui.js"></script>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+/* macOS 桌面版专属外观层
+   仅在 Electron 里注入（web/ 目录保持与 Web 版一致） */
+
+/* 红绿灯让位：顶栏左侧留出 78px，brand 从 100px 开始 */
+.topbar {
+  padding-left: 100px !important;
+}
+
+/* 顶栏空白处可拖动整窗：单独一层放在内容之下、topbar 之上不挡点击 */
+.ew-drag-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-h, 64px);
+  z-index: 49;
+  -webkit-app-region: drag;
+  pointer-events: auto;
+}
+.ew-drag-strip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 顶栏里的交互元素不能被拖拽层抢走 */
+.topbar,
+.topbar * {
+  -webkit-app-region: no-drag;
+}
+
+/* 桌面端用系统滚动条，但配色跟随墨黑 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(233, 228, 216, .14);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 176, 106, .32);
+  background-clip: padding-box;
+}
+
+/* 关掉网页里的 PWA 安装提示 / 触摸滚动条 */
+html.is-macos-app {
+  overscroll-behavior: none;
+}
+
+/* 全屏时不显示红绿灯预留，让内容满宽 */
+html.ew-fullscreen .topbar {
+  padding-left: 22px !important;
+}

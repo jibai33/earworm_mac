@@ -1,0 +1,13 @@
+{
+  "name": "闻曲 Earworm",
+  "short_name": "闻曲",
+  "description": "听曲知雅意 —— 沉浸式音乐播放器",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1216",
+  "theme_color": "#0f1216",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

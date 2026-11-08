@@ -1,0 +1,96 @@
+{
+  "name": "earworm-mac",
+  "productName": "闻曲",
+  "version": "1.0.0",
+  "description": "闻曲 Earworm · macOS 桌面版 —— 国风沉浸式音乐播放器（Electron 壳 + 本地音源服务）",
+  "author": "jibai33",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "EARWORM_DEV=1 electron .",
+    "server": "node app/server.js",
+    "icons": "node scripts/make-icons.js",
+    "build:mac": "electron-builder --mac dmg zip",
+    "build:dir": "electron-builder --mac dir"
+  },
+  "dependencies": {
+    "NeteaseCloudMusicApi": "^4.32.0",
+    "puppeteer-core": "^25.16.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "overrides": {
+    "axios": "1.18.1",
+    "body-parser": "1.20.6"
+  },
+  "build": {
+    "appId": "com.jibai33.earworm",
+    "productName": "闻曲",
+    "copyright": "Copyright © 2026 jibai33",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "app/**/*",
+      "build/icon.icns",
+      "build/trayTemplate.png",
+      "build/trayTemplate@2x.png",
+      "package.json",
+      "README.md",
+      "LICENSE",
+      "!app/data/**",
+      "!app/.qishui-*",
+      "!app/.qq-cookie",
+      "!app/.cookie",
+      "!app/.xy-token.json",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "app/modules/qishui-auth-v6/**",
+      "app/modules/qishui-audio-decryptor/**"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["arm64", "x64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "LSMinimumSystemVersion": "11.0",
+        "NSHumanReadableCopyright": "Copyright © 2026 jibai33 · GPL-3.0",
+        "NSAppleEventsUsageDescription": "闻曲需要控制浏览器完成汽水音乐扫码登录。"
+      }
+    },
+    "dmg": {
+      "title": "闻曲 ${version}",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        { "x": 140, "y": 200, "type": "file" },
+        { "x": 400, "y": 200, "type": "link", "path": "/Applications" }
+      ]
+    }
+  }
+}

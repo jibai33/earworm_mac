@@ -1,0 +1,19 @@
+# 依赖与构建产物
+node_modules/
+dist/
+build/.tmp/
+
+# 本机运行期凭据（由 app/user-paths.js 写入 Application Support，此处兜底）
+app/data/
+app/.cookie
+app/.qishui-cookie
+app/.qishui-token
+app/.qishui-oauth.json
+app/.qishui-qr-login.json
+app/.qq-cookie
+app/.xy-token.json
+**/.DS_Store
+
+# 日志
+*.log
+npm-debug.log*
