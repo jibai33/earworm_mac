@@ -156,10 +156,23 @@ async function getLoginInfo() {
 function proxyCover(res, coverUrl) {
   const mod = coverUrl.startsWith('https') ? https : http;
   const req = mod.get(coverUrl, { headers: { 'User-Agent': UA, 'Referer': 'https://music.163.com/' } }, (up) => {
+    if (res.headersSent || res.writableEnded) { up.resume(); return; }
     res.writeHead(200, { 'Content-Type': up.headers['content-type'] || 'image/jpeg', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=86400' });
     up.pipe(res);
   });
-  req.on('error', () => { res.writeHead(404); res.end(); });
+  // 上游失败时响应头可能已经发出去了，这时再 writeHead 会抛 ERR_HTTP_HEADERS_SENT，
+  // 而它发生在异步回调里、不在路由的 try 内 —— 未捕获就会把整个服务进程打死。
+  req.on('error', () => failSoft(res, 404));
+  res.on('error', () => { try { req.destroy(); } catch { /* ignore */ } });
+}
+
+/* 响应已经开始了就只能断开，不能再改状态码 */
+function failSoft(res, code) {
+  if (res.headersSent || res.writableEnded) {
+    try { res.destroy(); } catch { /* ignore */ }
+    return;
+  }
+  try { res.writeHead(code); res.end(); } catch { /* ignore */ }
 }
 
 /* ---------- 音频代理 ---------- */
@@ -229,13 +242,15 @@ function proxyAudio(res, au, range) {
   if (range) headers.Range = range;
   const mod = au.startsWith('https') ? https : http;
   const req2 = mod.get(au, { headers }, (up) => {
+    if (res.headersSent || res.writableEnded) { up.resume(); return; }
     const wh = { 'Content-Type': up.headers['content-type'] || 'audio/mp4', 'Access-Control-Allow-Origin': '*', 'Accept-Ranges': 'bytes' };
     if (up.headers['content-range']) wh['Content-Range'] = up.headers['content-range'];
     if (up.headers['content-length']) wh['Content-Length'] = up.headers['content-length'];
     res.writeHead(up.statusCode, wh);
     up.pipe(res);
   });
-  req2.on('error', () => { res.writeHead(502); res.end(); });
+  req2.on('error', () => failSoft(res, 502));
+  res.on('error', () => { try { req2.destroy(); } catch { /* ignore */ } });
 }
 
 /* ---------- 请求体 ---------- */
@@ -488,16 +503,20 @@ const server = http.createServer(async (req, res) => {
       try {
         const r = await qishuiQrLogin.checkQrConnect(q.get('token') || '');
         const d = r.data || {};
+        let cookieReady = false;
         if (d.confirmed) {
           const cookie = qishuiQrLogin.getCookie();
-          if (cookie) saveQishuiCookie(cookie);
+          if (cookie) { saveQishuiCookie(cookie); cookieReady = true; }
         }
         return sendJSON(res, {
-          ok: true, confirmed: !!d.confirmed,
+          ok: true, confirmed: !!d.confirmed, cookieReady,
           status: String(d.status || ''), error_code: d.error_code,
           description: d.description || '',
         });
-      } catch (e) { return sendJSON(res, { ok: false, error: e.message }, 200); }
+      } catch (e) {
+        // 二次验证取消 / 安全校验失败时把原因带回去，别让界面一直停在「等待扫码」
+        return sendJSON(res, { ok: false, error: e.message, code: e.code || '' }, 200);
+      }
     }
     if (pn === '/api/qishui/login/cookie') {
       const body = req.method === 'POST' ? await readBody(req) : {};
@@ -764,6 +783,15 @@ function serveStatic(res, file) {
     res.end(data);
   });
 }
+
+// 兜底：代理、解密、第三方接口都在异步回调里跑，任何一处漏抛都会把整个进程带走
+// （Electron 里 server.js 与主进程同进程，等于整个应用被关掉）。这里只记录不退出。
+process.on('uncaughtException', (err) => {
+  console.error('[server] uncaughtException（已拦截，服务继续运行）', (err && err.stack) || err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[server] unhandledRejection（已拦截，服务继续运行）', (err && err.stack) || err);
+});
 
 server.listen(PORT, HOST, () => {
   console.log('======================================================');

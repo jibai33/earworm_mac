@@ -458,7 +458,6 @@ class QishuiAuthRuntime {
   }
 
   async checkQrConnect(token) {
-    const generation = this.qrGeneration;
     await this.initialize();
     const identity = ensureIdentity();
     const body = {
@@ -492,24 +491,33 @@ class QishuiAuthRuntime {
         throw new Error('二次验证已通过，但服务端仍返回 2046；请重新刷新二维码');
       }
     }
-    if (generation === this.qrGeneration && Number(data.error_code) === 0 && (String(data.status) === '3' || String(data.status) === 'confirmed' || data.session_cookie)) {
-      await this.persistSessionCookies(data.session_cookie || '', generation);
+    if (Number(data.error_code) === 0 && (String(data.status) === '3' || String(data.status) === 'confirmed' || data.session_cookie)) {
+      // 不再拿二维码代次做门槛：用户确认的那一刻就是有效凭据，
+      // 中途刷新过二维码也照样要落盘，否则会「手机已确认、电脑仍显示未登录」。
+      await this.persistSessionCookies(data.session_cookie || '');
     }
     return envelope;
   }
 
-  async persistSessionCookies(sessionCookie, generation) {
+  async persistSessionCookies(sessionCookie) {
     const current = {};
     const cookies = await this.authSession.cookies.get({});
     for (const cookie of cookies) {
       const domain = String(cookie.domain || '').replace(/^\./, '').toLowerCase();
-      if (domain === 'qishui.com' || domain.endsWith('.qishui.com')) {
-        current[cookie.name] = cookie.value;
+      const name = String(cookie.name || '');
+      // 汽水自身的 cookie 全收；登录票据不一定落在 qishui.com，
+      // 抖音 passport 的 sessionid 常挂在 douyin.com / snssdk.com 上，
+      // 所以按名字再兜一层，否则会出现「确认成功但没凭据」。
+      if (domain === 'qishui.com' || domain.endsWith('.qishui.com') ||
+          /^(sessionid|sessionid_ss|sid_guard|sid_tt|passport_csrf_token|uid_tt|uid_tt_ss)$/i.test(name)) {
+        current[name] = cookie.value;
       }
     }
     Object.assign(current, parseCookieString(sessionCookie));
-    if (generation !== this.qrGeneration) return;
-    updateConfig({ cookie: buildCookieString(current), msToken: this.msToken });
+    if (this.destroying) return; // 正在退出清理，别把旧凭据写回去
+    const cookieString = buildCookieString(current);
+    if (!cookieString) return;
+    updateConfig({ cookie: cookieString, msToken: this.msToken });
   }
 
   async clear() {

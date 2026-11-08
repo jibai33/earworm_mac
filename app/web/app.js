@@ -1273,7 +1273,7 @@ async function openLogin(lp) {
   $('login-modal').hidden = false;
   switchLoginTab(typeof lp === 'string' ? lp : 'all');
 }
-let qishuiQrToken = '', qishuiQrTimer = null, qishuiQrGen = 0;
+let qishuiQrToken = '', qishuiQrTimer = null, qishuiQrGen = 0, qishuiQrBusy = false;
 function stopQishuiQrPoll() {
   if (qishuiQrTimer) { clearInterval(qishuiQrTimer); qishuiQrTimer = null; }
 }
@@ -1305,14 +1305,25 @@ async function startQishuiQr() {
     img.src = r.qrcode; img.hidden = false; btn.disabled = false;
     qrSt.textContent = '请用抖音 App 扫码，并在手机上确认';
     qishuiQrTimer = setInterval(async () => {
-      if (!qishuiQrToken || $('login-modal').hidden) { stopQishuiQrPoll(); return; }
+      if (!qishuiQrToken || $('login-modal').hidden || qishuiQrBusy) {
+        if (!qishuiQrToken) stopQishuiQrPoll();
+        return;
+      }
+      qishuiQrBusy = true;
       try {
         const c = await api('/api/qishui/login/check?token=' + encodeURIComponent(qishuiQrToken));
-        if (!c.ok) return;
+        if (!c.ok) {
+          // 二次验证取消、签名失败等：必须让用户看见原因，不能一直停在等待扫码
+          stopQishuiQrPoll(); qishuiQrToken = '';
+          qrSt.textContent = '⚠ ' + (c.error || '验证失败') + '，点「生成 / 刷新二维码」重试';
+          return;
+        }
         const s = String(c.status || '');
         if (c.confirmed) {
           stopQishuiQrPoll(); qishuiQrToken = '';
-          qrSt.textContent = '✓ 登录成功，凭据已存到本机';
+          qrSt.textContent = c.cookieReady
+            ? '✓ 登录成功，凭据已存到本机'
+            : '✓ 手机上已确认，但本机没拿到凭据，请点「生成 / 刷新二维码」重扫一次';
           checkQishuiStatus(); refreshLoginStatus();
         } else if (s === '3' || s === 'confirmed') qrSt.textContent = '已确认，正在写入凭据……';
         else if (s === '2' || s === 'scanned') qrSt.textContent = '已扫码，请在手机上点确认';
@@ -1321,6 +1332,7 @@ async function startQishuiQr() {
           qrSt.textContent = '二维码已过期，点「生成 / 刷新二维码」重试';
         } else qrSt.textContent = '等待扫码…';
       } catch { /* 网络抖动忽略 */ }
+      finally { qishuiQrBusy = false; }
     }, 2500);
   } catch (e) { qrSt.textContent = '⚠ ' + e.message; btn.disabled = false; }
 }
