@@ -774,13 +774,13 @@ body:has(#mini[hidden]) .px-muse { bottom: 28px; }
 }
 
 /* ---------- 各部件位移（整数格） ---------- */
-.muse-root { transform: translate(calc(var(--sway) * 1px), calc(var(--bob) * 1px)); }
-.muse-head { transform: translateX(calc(var(--head) * 1px)); }
-.muse-arm-l { transform: translate(calc(var(--iolx) * 1px), calc((var(--iol) + var(--psl)) * 1px)); }
-.muse-arm-r { transform: translate(calc(var(--iorx) * 1px), calc((var(--ior) + var(--psr)) * 1px)); }
-.muse-leg-l { transform: translateY(calc(var(--pll) * 1px)); }
-.muse-leg-r { transform: translateY(calc(var(--plr) * 1px)); }
-.muse-bow { transform: translateY(calc(var(--bow) * 1px)); }
+.muse-root { transform: translate(calc(var(--sway) * 2px), calc(var(--bob) * 2px)); }
+.muse-head { transform: translateX(calc(var(--head) * 2px)); }
+.muse-arm-l { transform: translate(calc(var(--iolx) * 2px), calc((var(--iol) + var(--psl)) * 2px)); }
+.muse-arm-r { transform: translate(calc(var(--iorx) * 2px), calc((var(--ior) + var(--psr)) * 2px)); }
+.muse-leg-l { transform: translateY(calc(var(--pll) * 2px)); }
+.muse-leg-r { transform: translateY(calc(var(--plr) * 2px)); }
+.muse-bow { transform: translateY(calc(var(--bow) * 2px)); }
 .muse-tail { animation: museTail 1.2s steps(2, end) infinite; }
 
 @keyframes museTail {
