@@ -710,3 +710,190 @@ input[type='range']::-webkit-slider-thumb {
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   角落乐手：首页左下角的像素小角色
+   viewBox 24×32，1 单位 = 4px；动作全部用整数格位移，
+   保证缩放后每个像素还是方块，不会出现半像素毛边。
+   ══════════════════════════════════════════════════════════════ */
+.px-muse {
+  --bob: 0; --sway: 0; --head: 0;
+  --psl: 0; --psr: 0; --pll: 0; --plr: 0; --bow: 0;
+  --iol: 0; --ior: 0; --iolx: 0; --iorx: 0;
+
+  position: fixed;
+  left: 20px;
+  bottom: 92px;
+  width: 128px;
+  height: 160px;
+  z-index: 18;
+  pointer-events: none;
+  transition: opacity .2s steps(3), transform .2s steps(3);
+}
+
+/* 脚下的一块「台子」，不然小角色会像浮在空里 */
+.px-muse::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 20px;
+  height: 4px;
+  background: var(--px-3);
+  border-top: 2px solid var(--px-line);
+  box-shadow: 4px 6px 0 rgba(0, 0, 0, .55);
+  pointer-events: none;
+}
+
+/* 身后一点琥珀色微光，把剪影从深色背景里拉出来 */
+.px-muse::before {
+  content: '';
+  position: absolute;
+  inset: 6px 0 14px 0;
+  background: radial-gradient(circle at 50% 58%, rgba(230, 176, 106, .11), rgba(230, 176, 106, 0) 64%);
+  pointer-events: none;
+}
+
+body:has(#mini[hidden]) .px-muse { bottom: 28px; }
+
+.px-muse.is-away {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.muse-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: auto;
+  cursor: pointer;
+  image-rendering: pixelated;
+  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .55));
+}
+
+/* ---------- 各部件位移（整数格） ---------- */
+.muse-root { transform: translate(calc(var(--sway) * 1px), calc(var(--bob) * 1px)); }
+.muse-head { transform: translateX(calc(var(--head) * 1px)); }
+.muse-arm-l { transform: translate(calc(var(--iolx) * 1px), calc((var(--iol) + var(--psl)) * 1px)); }
+.muse-arm-r { transform: translate(calc(var(--iorx) * 1px), calc((var(--ior) + var(--psr)) * 1px)); }
+.muse-leg-l { transform: translateY(calc(var(--pll) * 1px)); }
+.muse-leg-r { transform: translateY(calc(var(--plr) * 1px)); }
+.muse-bow { transform: translateY(calc(var(--bow) * 1px)); }
+.muse-tail { animation: museTail 1.2s steps(2, end) infinite; }
+
+@keyframes museTail {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1px, -1px); }
+}
+
+/* ---------- 两拍姿态：左倾 / 右倾 + 抬脚 ---------- */
+.px-muse[data-pose="0"] {
+  --bob: 0; --sway: -1; --head: 0;
+  --psl: 0; --psr: 0; --pll: 0; --plr: 0; --bow: 0;
+}
+
+.px-muse[data-pose="1"] {
+  --bob: -1; --sway: 1; --head: 1;
+  --psl: -1; --psr: 1; --pll: 0; --plr: -1; --bow: -1;
+}
+
+/* ---------- 乐器站位：手臂得够得着 ---------- */
+.px-muse[data-inst="pipa"] { --iolx: 1; --iol: 0; --iorx: -2; --ior: 0; }
+.px-muse[data-inst="piano"] { --iolx: 0; --iol: 2; --iorx: -1; --ior: 2; }
+.px-muse[data-inst="violin"] { --iolx: 2; --iol: -2; --iorx: -4; --ior: -3; }
+
+/* ---------- 只显示当前乐器 ---------- */
+.muse-inst,
+.muse-bow { display: none; }
+.px-muse[data-inst="pipa"] .muse-inst[data-p="pipa"],
+.px-muse[data-inst="piano"] .muse-inst[data-p="piano"],
+.px-muse[data-inst="violin"] .muse-inst[data-p="violin"] { display: block; }
+.px-muse[data-inst="violin"][data-pose="1"] .muse-bow { display: block; }
+.px-muse[data-inst="violin"][data-pose="0"] .muse-bow { display: block; }
+
+/* ---------- 没在放歌：慢呼吸 ---------- */
+.px-muse[data-playing="0"] .muse-root {
+  animation: museIdle 3.4s steps(2, end) infinite;
+}
+
+.px-muse[data-playing="0"] .muse-head {
+  animation: museIdleHead 3.4s steps(2, end) infinite;
+}
+
+@keyframes museIdle {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(0, -1px); }
+}
+
+@keyframes museIdleHead {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(1px); }
+}
+
+/* 一拍里手臂的「击弦」瞬间：多压一格又立刻弹回 */
+.px-muse[data-beat="1"] .muse-arm-r {
+  transform: translate(
+    calc(var(--iorx) * 1px),
+    calc((var(--ior) + var(--psr) + 1) * 1px)
+  );
+}
+
+.px-muse[data-inst="piano"][data-beat="1"] .muse-arm-l {
+  transform: translate(
+    calc(var(--iolx) * 1px),
+    calc((var(--iol) + var(--psl) + 1) * 1px)
+  );
+}
+
+/* ---------- 飘起来的小音符 ---------- */
+.muse-note {
+  position: absolute;
+  top: 10px;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--px-amber);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, .85);
+  pointer-events: none;
+  animation: museNote 1.4s steps(7, end) forwards;
+}
+
+.muse-note:nth-of-type(2n) { color: var(--px-amber-hi); }
+
+@keyframes museNote {
+  0% { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(-14px, -62px); opacity: 0; }
+}
+
+/* ---------- 悬浮说明 ---------- */
+.muse-tag {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--px-dim);
+  background: var(--px-1);
+  border: 2px solid var(--px-line);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .8);
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity .12s steps(2), transform .12s steps(2);
+  pointer-events: none;
+}
+
+.muse-tag b { color: var(--px-amber); font-weight: 400; }
+
+.px-muse:hover .muse-tag {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (max-width: 900px) {
+  .px-muse { display: none; }
+}

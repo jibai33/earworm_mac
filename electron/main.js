@@ -477,6 +477,14 @@ if (!gotLock) {
   app.whenReady().then(async () => {
     nativeTheme.themeSource = 'dark';
 
+    // 开发模式（npx electron .）Dock 上会挂 Electron 默认图标，手动换成自己的
+    if (process.platform === 'darwin' && app.dock) {
+      try {
+        const devIcon = path.join(__dirname, '..', 'build', 'icon.png');
+        if (fs.existsSync(devIcon)) app.dock.setIcon(nativeImage.createFromPath(devIcon));
+      } catch { /* 图标缺失不影响启动 */ }
+    }
+
     try {
       await startServer();
     } catch (err) {
