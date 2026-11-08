@@ -52,6 +52,22 @@ npm run server     # 只跑本地音源服务（浏览器访问 http://localhost
 
 环境：macOS 11+、Node 22+。
 
+### 调试
+
+```bash
+EARWORM_DEV=1 npx electron .            # 打开 DevTools
+EARWORM_REMOTE_DEBUG=9222 npx electron . # 暴露 DevTools 协议端口（可接 puppeteer）
+```
+
+### 与 Web 版的关系
+
+**两端完全独立。** 本仓库自带完整的服务端与前端（`app/server.js`、`app/modules`、`app/web`），
+不依赖也不引用 `earworm` 仓库的任何文件，两边各自演进、互不覆盖：
+
+- 桌面端为了写数据到 `~/Library/Application Support/闻曲`、绕过只读 App 包等原因，对路径做了本仓库内的改造；
+- 因此**不要**用 `rsync` / 复制的方式从 Web 仓库覆盖 `app/`，那会把桌面端的改动冲掉；
+- 需要借鉴 Web 端的某个具体实现时，手动挑那一段改过来即可，不做整体同步。
+
 ### 目录结构
 
 ```

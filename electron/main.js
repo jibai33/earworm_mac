@@ -455,6 +455,7 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  // 重复打开只唤起主窗口，不产生第二个实例
   app.on('second-instance', () => showMain());
 
   app.setAboutPanelOptions({
