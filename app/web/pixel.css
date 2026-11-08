@@ -781,12 +781,7 @@ body:has(#mini[hidden]) .px-muse { bottom: 28px; }
 .muse-leg-l { transform: translateY(calc(var(--pll) * 2px)); }
 .muse-leg-r { transform: translateY(calc(var(--plr) * 2px)); }
 .muse-bow { transform: translateY(calc(var(--bow) * 2px)); }
-.muse-tail { animation: museTail 1.2s steps(2, end) infinite; }
-
-@keyframes museTail {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(1px, -1px); }
-}
+.muse-tail { transition: transform .1s steps(2, end); }
 
 /* ---------- 两拍姿态：左倾 / 右倾 + 抬脚 ---------- */
 .px-muse[data-pose="0"] {
@@ -796,8 +791,12 @@ body:has(#mini[hidden]) .px-muse { bottom: 28px; }
 
 .px-muse[data-pose="1"] {
   --bob: -1; --sway: 1; --head: 1;
-  --psl: -1; --psr: 1; --pll: 0; --plr: -1; --bow: -1;
+  --psl: -1; --psr: 1; --pll: 0; --plr: 0; --bow: -1;
 }
+
+/* 坐姿：后脚不离地，尾巴跟着拍子甩 */
+.px-muse[data-pose="0"] .muse-tail { transform: translate(0, 0); }
+.px-muse[data-pose="1"] .muse-tail { transform: translate(2px, -2px); }
 
 /* ---------- 乐器站位：手臂得够得着 ---------- */
 .px-muse[data-inst="pipa"] { --iolx: 1; --iol: 0; --iorx: -2; --ior: 0; }
