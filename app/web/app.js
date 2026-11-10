@@ -1321,9 +1321,17 @@ async function startQishuiQr() {
         const s = String(c.status || '');
         if (c.confirmed) {
           stopQishuiQrPoll(); qishuiQrToken = '';
-          qrSt.textContent = c.cookieReady
-            ? '✓ 登录成功，凭据已存到本机'
-            : '✓ 手机上已确认，但本机没拿到凭据，请点「生成 / 刷新二维码」重扫一次';
+          if (c.cookieReady) {
+            qrSt.textContent = '✓ 登录成功，凭据已存到本机';
+          } else {
+            // 「手机确认」和「拿到票据」是两件事，把具体原因摆出来，别再让用户盲扫
+            qrSt.textContent = '⚠ 手机已确认，但本机没拿到凭据：' + (c.reason || '未取得登录票据') +
+              '。可展开下方「手动粘贴 cookie」填入，或点刷新重扫一次。';
+            const input = $('qishui-cookie-input');
+            const fold = input && input.closest('details');
+            if (fold) fold.open = true;
+            if (c.cookieDebug) console.warn('[汽水登录] 凭据诊断（只有字段名，无票据值）', c.cookieDebug);
+          }
           checkQishuiStatus(); refreshLoginStatus();
         } else if (s === '3' || s === 'confirmed') qrSt.textContent = '已确认，正在写入凭据……';
         else if (s === '2' || s === 'scanned') qrSt.textContent = '已扫码，请在手机上点确认';

@@ -40,7 +40,40 @@ function writeConfig(file, value) {
 }
 
 function hasLoginCookie(cookie) {
-  return /(?:^|;\s*)(?:sessionid|sessionid_ss|sid_guard|sid_tt)=[^;\s]+/i.test(String(cookie || ''));
+  return /(?:^|;\s*)(?:sessionid|sessionid_ss|sid_guard|sid_tt|uid_tt|uid_tt_ss)=[^;\s]+/i.test(String(cookie || ''));
+}
+
+function parseCookiePairs(raw) {
+  const out = {};
+  String(raw || '').split(';').forEach(part => {
+    const index = part.indexOf('=');
+    if (index > 0) out[part.slice(0, index).trim()] = part.slice(index + 1).trim();
+  });
+  return out;
+}
+
+function findCookieStrings(value, out, depth = 0) {
+  if (depth > 5 || out.length > 20) return;
+  if (typeof value === 'string') {
+    if (/(?:^|;\s*)(?:sessionid|sessionid_ss|sid_guard|sid_tt|uid_tt|uid_tt_ss)\s*=/i.test(value)) out.push(value);
+    return;
+  }
+  if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) findCookieStrings(item, out, depth + 1);
+  }
+}
+
+// 只回传字段名，不带任何票据值；用户截屏发过来也能安全排查
+function describeCookieFailure(debug) {
+  const headerNames = (debug && debug.headerNames) || [];
+  const loginNames = (debug && debug.loginNames) || [];
+  if (!headerNames.length) {
+    return '官方响应里没有下发 Set-Cookie 登录票据（常见于二次验证未完成）';
+  }
+  if (!loginNames.length) {
+    return `只收到 ${headerNames.slice(0, 8).join('、') || '空'}，缺少 sessionid / sid_guard`;
+  }
+  return '票据已截获，但写入本机失败';
 }
 
 function createQishuiQrLoginBridge(options) {
@@ -73,6 +106,23 @@ function createQishuiQrLoginBridge(options) {
   }
 
   auth.configure({ getConfig, updateConfig });
+
+  // 有些版本的接口把票据直接放在响应体里；签名引擎那一步即使落盘失败，
+  // 桥接层也要能自己收下，别让用户白扫一次。
+  function adoptCookieFromPayload(data) {
+    const found = [];
+    findCookieStrings(data, found);
+    if (!found.length) return false;
+    const merged = parseCookiePairs(getCookie());
+    for (const raw of found) Object.assign(merged, parseCookiePairs(raw));
+    const next = Object.entries(merged)
+      .filter(([name]) => name)
+      .map(([name, value]) => `${name}=${value}`)
+      .join('; ');
+    if (!hasLoginCookie(next)) return false;
+    updateConfig({ cookie: next });
+    return true;
+  }
 
   async function createQrCode() {
     qrGeneration += 1;
@@ -120,10 +170,24 @@ function createQishuiQrLoginBridge(options) {
     const confirmed = Number(data.error_code) === 0 &&
       (String(data.status) === '3' || String(data.status) === 'confirmed' || !!data.session_cookie);
     if (confirmed) {
-      confirmedQrToken = token;
-      qrPending = false;
-      confirmedQrResult = { ...result, data: { ...data, confirmed: true } };
-      return confirmedQrResult;
+      // 「手机确认了」和「本机拿到票据」是两件事：票据由签名引擎从响应头
+      // 截获后写进 config，这里再核一次，别把没凭据的确认当成登录成功。
+      // 只认真正落在本机配置里的票据，不信上游的「已写入」自述
+      let cookieReady = hasLoginCookie(getCookie());
+      if (!cookieReady) cookieReady = adoptCookieFromPayload(data);
+      const debug = data.__cookieDebug || {};
+      const reason = cookieReady ? '' : describeCookieFailure(debug);
+      const payload = { ...data, confirmed: true, cookieReady, reason, __cookieDebug: debug };
+      // 只有凭据齐了才缓存；否则后续轮询还能再尝试补齐
+      if (cookieReady) {
+        confirmedQrToken = token;
+        qrPending = false;
+        confirmedQrResult = { ...result, data: payload };
+      } else {
+        qrPending = true;
+        console.warn('[QishuiQrLogin] 已确认但未取得凭据:', reason, JSON.stringify(debug));
+      }
+      return { ...result, data: payload };
     }
     if (Number(data.error_code) === 2 || String(data.status) === 'expired') issuedTokens.delete(token);
     return { ...result, data: { ...data, confirmed } };
@@ -147,6 +211,8 @@ function createQishuiQrLoginBridge(options) {
       deviceId: String(config.deviceId || ''),
       msTokenReady: !!config.msToken,
       configFile,
+      cookieDiagnostics: typeof auth.getCookieDiagnostics === 'function'
+        ? auth.getCookieDiagnostics() : null,
     };
   }
 

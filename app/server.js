@@ -56,6 +56,19 @@ function saveQishuiCookie(c) {
   qishuiCookie = String(c || '').trim();
   try { fs.writeFileSync(QISHUI_COOKIE_FILE, qishuiCookie); } catch (e) { console.error('[QishuiCookie] 写入失败', e.message); }
 }
+// 扫码登录把票据写在 .qishui-qr-login.json 里。旧版本（或确认那次进程被退出）
+// 可能没同步到 .qishui-cookie，重启后就又显示未登录 —— 启动时补一次。
+try {
+  if (!qishuiCookie) {
+    const qrConfig = JSON.parse(fs.readFileSync(userPaths.dataFile('.qishui-qr-login.json'), 'utf8'));
+    const saved = String(qrConfig.cookie || '').trim();
+    if (/(?:^|;\s*)(?:sessionid|sessionid_ss|sid_guard|sid_tt|uid_tt|uid_tt_ss)=/i.test(saved)) {
+      qishuiCookie = saved;
+      fs.writeFileSync(QISHUI_COOKIE_FILE, qishuiCookie);
+      console.log('[QishuiCookie] 已从扫码配置回填登录凭据');
+    }
+  }
+} catch { /* 首次运行，没有扫码配置 */ }
 function saveQQCookie(c) {
   qqApi.setQQCookie(String(c || '').trim());
   try { fs.writeFileSync(QQ_COOKIE_FILE, qqApi.getQQCookie()); } catch (e) { console.error('[QQCookie] 写入失败', e.message); }
@@ -478,6 +491,10 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== 汽水音乐 ====================
     if (pn === '/api/qishui/status') {
+      // 自愈：票据可能在「手机确认」之后才由另一条 passport 请求种下来，
+      // 那时 check 路由已经返回了。每次查登录态都补同步一次，不用重启应用。
+      const qrCookie = qishuiQrLogin.getCookie();
+      if (qrCookie !== qishuiCookie && qishuiQrLogin.hasLoginCookie(qrCookie)) saveQishuiCookie(qrCookie);
       const st = await qishuiApi.handleQishuiStatus(qishuiCookie);
       return sendJSON(res, Object.assign({}, st, {
         qrAvailable: QISHUI_QR_AVAILABLE,
@@ -503,13 +520,16 @@ const server = http.createServer(async (req, res) => {
       try {
         const r = await qishuiQrLogin.checkQrConnect(q.get('token') || '');
         const d = r.data || {};
-        let cookieReady = false;
-        if (d.confirmed) {
-          const cookie = qishuiQrLogin.getCookie();
-          if (cookie) { saveQishuiCookie(cookie); cookieReady = true; }
-        }
+        // 每次都同步一次：票据由签名引擎写进扫码配置，这里负责喂给播放接口。
+        // 只有含 sessionid / sid_guard 的串才算真凭据，别把一串无关 cookie
+        // 当成已登录写进 .qishui-cookie。
+        const cookie = qishuiQrLogin.getCookie();
+        const cookieReady = qishuiQrLogin.hasLoginCookie(cookie);
+        if (cookieReady) saveQishuiCookie(cookie);
         return sendJSON(res, {
           ok: true, confirmed: !!d.confirmed, cookieReady,
+          reason: !cookieReady && d.confirmed ? (d.reason || '未取得登录票据') : '',
+          cookieDebug: d.confirmed && !cookieReady ? (d.__cookieDebug || {}) : undefined,
           status: String(d.status || ''), error_code: d.error_code,
           description: d.description || '',
         });

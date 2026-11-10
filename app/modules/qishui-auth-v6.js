@@ -127,6 +127,50 @@ function parseCookieString(raw) {
   return result;
 }
 
+// 登录票据以 Set-Cookie 响应头下发，隐藏窗口里是跨域 XHR：Chromium 会丢掉
+// 这些 cookie，JS 端的 getAllResponseHeaders() 也读不到（forbidden header）。
+// 因此必须在 Electron 原生响应头这一层把它们截下来。
+const COOKIE_ATTR_NAMES = new Set([
+  'path', 'domain', 'expires', 'max-age', 'httponly', 'secure',
+  'samesite', 'priority', 'partitioned', 'samesiteparty',
+]);
+const LOGIN_COOKIE_RE = /^(sessionid|sessionid_ss|sid_guard|sid_tt|uid_tt|uid_tt_ss|sid_tt_ss|ssid_ucp_v1)$/i;
+
+function parseSetCookieValues(headers) {
+  const out = new Map();
+  const lines = [];
+  if (Array.isArray(headers)) {
+    for (const line of headers) lines.push(String(line));
+  } else {
+    for (const [key, value] of Object.entries(headers || {})) {
+      if (String(key).toLowerCase() !== 'set-cookie') continue;
+      for (const line of (Array.isArray(value) ? value : [value])) lines.push(String(line));
+    }
+  }
+  for (const line of lines) {
+    // 一个 Set-Cookie 头只含一个 cookie；取分号前第一段即可，后面的都是属性
+    const first = String(line).split(';')[0];
+    const eq = first.indexOf('=');
+    if (eq <= 0) continue;
+    const name = first.slice(0, eq).trim();
+    const value = first.slice(eq + 1).trim();
+    if (!name || COOKIE_ATTR_NAMES.has(name.toLowerCase())) continue;
+    out.set(name, value);
+  }
+  return out;
+}
+
+// 有些版本的接口把票据放在响应体里，字段名不固定，递归扫一遍 cookie 形态的字符串
+function collectCookieLikeStrings(value, out, depth = 0) {
+  if (depth > 6 || out.length > 30) return;
+  if (typeof value === 'string') {
+    if (/(?:^|;\s*)(?:sessionid|sessionid_ss|sid_guard|sid_tt|uid_tt|uid_tt_ss)\s*=/i.test(value)) out.push(value);
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const item of Object.values(value)) collectCookieLikeStrings(item, out, depth + 1);
+}
+
 function buildCookieString(values) {
   return Object.entries(values)
     .filter(([name]) => name)
@@ -148,6 +192,9 @@ class QishuiAuthRuntime {
     this.destroying = false;
     this.mfaNetworkLog = [];
     this.qrGeneration = 0;
+    // 从原生响应头截获的 Set-Cookie（跨域 XHR 不会写进 Electron 的 cookie jar）
+    this.capturedCookieJar = new Map();
+    this.lastCookieCapture = null;
   }
 
   async initialize() {
@@ -197,17 +244,45 @@ class QishuiAuthRuntime {
   }
 
   _installSessionHooks() {
+    // session 是同一个持久 partition，重复初始化会让 listener 越堆越多
+    if (this._hooksInstalled) return;
+    this._hooksInstalled = true;
     const authSession = this.authSession;
     authSession.webRequest.onBeforeRequest(
       { urls: [OFFICIAL_BDMS_URL] },
       (_details, callback) => callback({ redirectURL: this.assetBase + 'bdms.js' }),
     );
+    // CORS 注入与 Set-Cookie 截获必须放在同一个监听器里：Electron 的
+    // webRequest 对同一事件只保留最后一个 listener，注册两个会把前者挤掉。
+    // 过滤器放宽到所有请求，因为登录票据可能由 qishui / douyin / zijieapi /
+    // snssdk 等任一域下发；CORS 头仍然只给官方接口加。
+    const corsOrigins = /^https:\/\/(?:api\.qishui\.com|verify\.zijieapi\.com|auth\.zijieapi\.com)\//;
     authSession.webRequest.onHeadersReceived(
-      { urls: ['https://api.qishui.com/*', 'https://verify.zijieapi.com/*', 'https://auth.zijieapi.com/*'] },
+      { urls: ['*://*/*'] },
       (details, callback) => {
         const headers = { ...(details.responseHeaders || {}) };
-        headers['Access-Control-Allow-Origin'] = ['*'];
-        headers['Access-Control-Expose-Headers'] = ['*'];
+        try {
+          const captured = parseSetCookieValues(details.responseHeaders);
+          if (captured.size) {
+            for (const [name, value] of captured) this.capturedCookieJar.set(name, value);
+            this.lastCookieCapture = {
+              at: Date.now(),
+              names: [...captured.keys()],
+              endpoint: this.safeEndpoint(details.url),
+            };
+          }
+        } catch (error) {
+          console.warn('[QishuiAuth] Set-Cookie 截获失败:', error && error.message || error);
+        }
+        if (corsOrigins.test(String(details.url || ''))) {
+          // 原响应头里可能已有小写键，先删掉再加，避免同名头出现两份
+          for (const key of Object.keys(headers)) {
+            const lower = String(key).toLowerCase();
+            if (lower === 'access-control-allow-origin' || lower === 'access-control-expose-headers') delete headers[key];
+          }
+          headers['Access-Control-Allow-Origin'] = ['*'];
+          headers['Access-Control-Expose-Headers'] = ['*'];
+        }
         callback({ responseHeaders: headers });
       },
     );
@@ -403,6 +478,8 @@ class QishuiAuthRuntime {
     if (aBogus.length !== 44 || signedMsToken !== this.msToken) {
       throw new Error('汽水安全参数注入失败：a_bogus 或 msToken 缺失');
     }
+    // 跨域 XHR 读不到 Set-Cookie，但其它响应头对排查凭据问题有用
+    envelope.__responseHeaders = String(response.headers || '');
     return envelope;
   }
 
@@ -494,34 +571,95 @@ class QishuiAuthRuntime {
     if (Number(data.error_code) === 0 && (String(data.status) === '3' || String(data.status) === 'confirmed' || data.session_cookie)) {
       // 不再拿二维码代次做门槛：用户确认的那一刻就是有效凭据，
       // 中途刷新过二维码也照样要落盘，否则会「手机已确认、电脑仍显示未登录」。
-      await this.persistSessionCookies(data.session_cookie || '');
+      let saved;
+      try {
+        saved = await this.persistSessionCookies(data.session_cookie || '', envelope);
+      } catch (error) {
+        // 写凭据失败不能反过来把「已确认」这件事打成失败，
+        // 否则前端又会继续轮询一个已被消费的 token，回到「二维码失效」。
+        console.warn('[QishuiAuth] 凭据落盘异常:', error && error.message || error);
+        saved = { ready: false, cookie: '', debug: { error: String(error && error.message || error) } };
+      }
+      if (!saved.ready) {
+        // 有些版本的官方流程是在 check_qrconnect 之后，才由另一条 passport
+        // 请求把 sessionid 种下来。给原生响应头钩子一点时间再收两次，
+        // 否则会出现「手机确认了，本机却说没拿到凭据」。
+        for (const delay of [350, 700]) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          try {
+            const again = await this.persistSessionCookies('', envelope, true);
+            if (again.ready) { saved = again; break; }
+            saved = again;
+          } catch { /* 保留上一次的诊断 */ }
+        }
+      }
+      envelope.data = {
+        ...data,
+        cookieReady: saved.ready,
+        cookie: saved.cookie,
+        __cookieDebug: saved.debug,
+      };
     }
     return envelope;
   }
 
-  async persistSessionCookies(sessionCookie) {
+  async persistSessionCookies(sessionCookie, envelope, quiet = false) {
     const current = {};
-    const cookies = await this.authSession.cookies.get({});
-    for (const cookie of cookies) {
-      const domain = String(cookie.domain || '').replace(/^\./, '').toLowerCase();
-      const name = String(cookie.name || '');
-      // 汽水自身的 cookie 全收；登录票据不一定落在 qishui.com，
-      // 抖音 passport 的 sessionid 常挂在 douyin.com / snssdk.com 上，
-      // 所以按名字再兜一层，否则会出现「确认成功但没凭据」。
-      if (domain === 'qishui.com' || domain.endsWith('.qishui.com') ||
-          /^(sessionid|sessionid_ss|sid_guard|sid_tt|passport_csrf_token|uid_tt|uid_tt_ss)$/i.test(name)) {
-        current[name] = cookie.value;
+    const headerNames = [...this.capturedCookieJar.keys()];
+    for (const [name, value] of this.capturedCookieJar) current[name] = value;
+
+    // Electron cookie jar 再兜一层（同域请求种下的 cookie 仍会在这里）
+    const jarNames = [];
+    try {
+      const cookies = await this.authSession.cookies.get({});
+      for (const cookie of cookies) {
+        const domain = String(cookie.domain || '').replace(/^\./, '').toLowerCase();
+        const name = String(cookie.name || '');
+        if (domain === 'qishui.com' || domain.endsWith('.qishui.com') || LOGIN_COOKIE_RE.test(name)) {
+          current[name] = cookie.value;
+          jarNames.push(name);
+        }
       }
+    } catch (error) {
+      console.warn('[QishuiAuth] 读取会话 cookie 失败:', error && error.message || error);
     }
+
+    // 响应体：官方字段 session_cookie，或任意层级里 cookie 形态的字符串
+    const bodyNames = Object.keys(parseCookieString(sessionCookie));
     Object.assign(current, parseCookieString(sessionCookie));
-    if (this.destroying) return; // 正在退出清理，别把旧凭据写回去
+    const bodyLike = [];
+    collectCookieLikeStrings(envelope, bodyLike);
+    for (const raw of bodyLike) Object.assign(current, parseCookieString(raw));
+
+    const names = Object.keys(current);
+    const loginNames = names.filter(name => LOGIN_COOKIE_RE.test(name));
+    const debug = {
+      headerNames,
+      jarNames,
+      bodyNames,
+      collectedNames: names,
+      loginNames,
+      lastCapture: this.lastCookieCapture,
+      responseHeaderNames: String(envelope && envelope.__responseHeaders || '')
+        .split(/\r?\n/).map(line => line.split(':')[0].trim()).filter(Boolean).slice(0, 30),
+    };
+    if (this.destroying) return { ready: false, cookie: '', debug };
+
     const cookieString = buildCookieString(current);
-    if (!cookieString) return;
+    if (!cookieString || !loginNames.length) {
+      // 没拿到登录票据就不要写，避免把一份「看着像 cookie、其实没登录」的串
+      // 覆盖进配置文件，之后状态接口一直显示未登录却查不出原因。
+      if (!quiet) console.warn('[QishuiAuth] 确认成功但未取得登录票据:', JSON.stringify(debug));
+      return { ready: false, cookie: '', debug };
+    }
     updateConfig({ cookie: cookieString, msToken: this.msToken });
+    return { ready: true, cookie: cookieString, debug };
   }
 
   async clear() {
     this.qrGeneration += 1;
+    this.capturedCookieJar.clear();
+    this.lastCookieCapture = null;
     if (this.authSession) {
       await this.authSession.clearStorageData({
         storages: ['cookies', 'localstorage', 'indexdb', 'cachestorage', 'serviceworkers'],
@@ -556,6 +694,14 @@ async function checkQrConnect(token) {
   return runtime.checkQrConnect(token);
 }
 
+// 只回传字段名，用于排查「确认了但没凭据」，不含任何票据值
+function getCookieDiagnostics() {
+  return {
+    capturedNames: runtime ? [...runtime.capturedCookieJar.keys()] : [],
+    lastCapture: runtime ? runtime.lastCookieCapture : null,
+  };
+}
+
 async function clear() {
   if (runtime) {
     await runtime.clear();
@@ -576,5 +722,8 @@ module.exports = {
   getQrCode,
   checkQrConnect,
   clear,
+  getCookieDiagnostics,
   constants: { API_BASE, AID, APP_VERSION, AUTH_PARTITION },
+  // 供离线用例验证 Set-Cookie 截获与凭据合并，不参与运行时流程
+  _test: { parseSetCookieValues, collectCookieLikeStrings, createRuntime: () => new QishuiAuthRuntime() },
 };
