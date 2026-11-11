@@ -27,7 +27,8 @@
   --px-line: #2b323d;
   --px-line-hi: #48546633;
   --px-txt: #eae4d6;
-  --px-dim: #98a0a8;
+  /* 小字提亮：像素字笔画细，原 #98a0a8 在 #151920 上偏灰，压到 12px 就发糊 */
+  --px-dim: #b0b9c2;
   --px-amber: #e6b06a;
   --px-amber-hi: #f6cd93;
   --px-red: #d1483a;
@@ -47,7 +48,7 @@
   --line: #2b323d;
   --line-2: #3b4453;
   --txt: #eae4d6;
-  --txt-dim: #98a0a8;
+  --txt-dim: #b0b9c2;
   --amber: #e6b06a;
   --amber-2: #f6cd93;
   --amber-rgb: 230, 176, 106;
@@ -895,4 +896,91 @@ body:has(#mini[hidden]) .px-muse { bottom: 28px; }
 
 @media (max-width: 900px) {
   .px-muse { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   版式打磨：只调排版与可读性，不动业务逻辑、不改像素语言
+   ══════════════════════════════════════════════════════════════ */
+
+/* 左栏补足高度与常用快捷键，避免右侧长列表旁留一大片空白 */
+.side-panel {
+  min-height: min(680px, calc(100dvh - var(--topbar-h) - 40px)) !important;
+}
+.sp-actions { margin-top: 0 !important; }
+.sp-shortcuts {
+  margin-top: auto; padding-top: 16px;
+  border-top: 2px dashed var(--px-line);
+}
+.sp-shortcuts-title {
+  font-size: 12px; color: var(--px-dim); letter-spacing: .06em; margin-bottom: 10px;
+}
+.sp-key {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 5px 0; font-size: 12px; color: var(--px-dim);
+}
+.sp-key kbd {
+  font-family: var(--pixel-font); font-size: 12px; color: var(--px-amber);
+  background: var(--px-2); border: 2px solid var(--px-line);
+  padding: 2px 6px; box-shadow: 2px 2px 0 #000; white-space: nowrap;
+}
+
+/* 主卡标题允许两行，长曲名不再一律截成「……」。
+   .bc-info 原本按内容收缩，百分比宽度会把标题挤成孤字换行，这里让它占满卡片。 */
+.bc-info { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.bc-name {
+  white-space: normal !important;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; max-width: 100%; overflow-wrap: anywhere;
+}
+.bc-continue, .bc-mini { min-height: 156px; }
+
+/* 今日聆听的说明文字不再被挤成一列单字 */
+.stat.wide i, .stats-row .wide i {
+  white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis;
+}
+.stats-row { gap: 18px !important; }
+
+/* 封面加载失败：换成内置像素音符占位，不留破图或白条 */
+img.px-broken {
+  object-fit: contain !important;
+  padding: 22% !important;
+  background: var(--px-2) !important;
+}
+
+/* 900–1240px 原是断点空白区：五列被硬压成竖排文字。
+   改为单列内容 + 顶部横条时间面板，主卡独占一行、三张迷你卡等分。 */
+@media (min-width: 900px) and (max-width: 1240px) {
+  /* .home 同时是固定高度的滚动容器，单列 grid 会把首行压到 32px 导致两块重叠；
+     flex 堆叠按内容自然排布，且必须 stretch 才不会让子项按内容缩窄。 */
+  .home {
+    display: flex !important; flex-direction: column !important;
+    align-items: stretch !important; gap: 14px !important;
+  }
+  .side-panel {
+    position: static !important; flex-direction: row; align-items: center;
+    flex-wrap: wrap; gap: 10px 20px; min-height: 0 !important;
+    padding: 14px 18px !important;
+  }
+  .sp-date { flex: 0 0 auto; }
+  .sp-clock { margin: 0 !important; }
+  .sp-quote { flex: 1 1 220px; min-width: 0; margin: 0 !important; }
+  .sp-actions { margin: 0 !important; }
+  .sp-shortcuts { display: none; }
+  .b-row { grid-template-columns: repeat(6, 1fr) !important; }
+  .b-row > .bc-continue { grid-column: span 6 !important; }
+  .b-row > .bc-mini { grid-column: span 2 !important; }
+  .b-row2 { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* 移动端原布局是 flex column，但 align-items:start 继承自 grid 版 .home，
+   会让时间面板只按内容宽缩成一小块；强制拉满 */
+@media (max-width: 899px) {
+  .home { align-items: stretch !important; }
+}
+
+/* 窄屏：两栏统计卡各自独占一行，避免再被压成单字列 */
+@media (max-width: 620px) {
+  .b-row2 { grid-template-columns: 1fr !important; }
+  .sp-shortcuts { display: none; }
+  .side-panel { min-height: 0 !important; }
 }

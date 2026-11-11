@@ -1913,6 +1913,20 @@ document.querySelectorAll('.page').forEach(p => p.addEventListener('scroll', () 
   document.body.classList.toggle('is-scrolled', p.scrollTop > 12);
 }, { passive: true }));
 
+/* ---------- 封面兜底 ----------
+   音源侧封面偶尔防盗链 / 404，破图会在像素界面里变成刺眼的白条或 alt 文字。
+   统一换成品牌那枚 11×11 像素音符，捕获阶段监听，动态插入的图片同样生效。 */
+const PX_NOTE_SVG = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 11' shape-rendering='crispEdges'><g fill='#e6b06a'><rect x='6' y='1' width='4' height='1'/><rect x='8' y='2' width='2' height='1'/><rect x='8' y='3' width='1' height='1'/><rect x='6' y='1' width='2' height='9'/><rect x='3' y='6' width='5' height='1'/><rect x='2' y='7' width='6' height='1'/><rect x='2' y='8' width='6' height='1'/><rect x='3' y='9' width='5' height='1'/></g></svg>";
+const PX_BROKEN_COVER = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PX_NOTE_SVG);
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!img || img.tagName !== 'IMG' || img.src === PX_BROKEN_COVER) return;
+  // 二维码加载失败要交给登录逻辑提示「刷新二维码」，别用占位图把错误盖住
+  if (img.closest('.qr-wrap')) return;
+  img.classList.add('px-broken');
+  img.src = PX_BROKEN_COVER;
+}, true);
+
 /* ---------- 启动 ---------- */
 renderHist();
 renderCollects();
