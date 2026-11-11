@@ -3,6 +3,9 @@
 // ====================================================================
 //  闻曲 · 听觉年鉴（像素小报的数据层）
 //  ------------------------------------------------------------------
+//  三种尺度同一套版面：年鉴（近一年）/ 月鉴（本月）/ 周鉴（本周）。
+//  记录留一年，所以「年鉴」看得到去年这个时候。
+//
 //  不统计「你听了多少首」，只找那几个具体的时刻：
 //    · 某一天把同一首听了很多遍
 //    · 某一首被连跳了很多次
@@ -10,34 +13,94 @@
 //  版面规则：标题必须是一件具体的事；数字只出现在撑得住故事的地方。
 // ====================================================================
 
-const DAY = 24 * 60 * 60 * 1000;
+const {
+  DAY, timeOf, startOfWeek, startOfMonth, weekIndex, fmtTime, fmtDate, fmtShortDate, fmtYMD,
+} = require('./event-time');
+
 const norm = (v) => String(v == null ? '' : v).trim().toLowerCase();
 const firstArtist = (v) => String(v == null ? '' : v).split(/[\/,、&]/)[0].trim();
-const fmtTime = (ts) => {
-  const d = new Date(Number(ts) || 0);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
-const fmtDate = (ts) => {
-  const d = new Date(Number(ts) || 0);
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+
+const PERIODS = ['year', 'month', 'week'];
+const WORDS = {
+  year: { span: '近一年', when: '这一年', thisOne: '这一年', issue: '年刊' },
+  month: { span: '本月', when: '这个月', thisOne: '这个月', issue: '月号' },
+  week: { span: '本周', when: '这一周', thisOne: '这一周', issue: '周鉴' },
 };
 
-function buildYearbook({ events = [], now = Date.now() } = {}) {
-  const list = (events || []).filter((e) => e && e.song && e.song.name);
-  const plays = list.filter((e) => ['play', 'complete'].includes(e.type));
+/** 各尺度的起止 */
+function windowOf(period, now) {
+  if (period === 'week') return { from: startOfWeek(now), to: now };
+  if (period === 'year') return { from: now - 365 * DAY, to: now };
+  return { from: startOfMonth(now), to: now };
+}
+
+function labelOf(period, from, to, now) {
+  if (period === 'week') return `第 ${weekIndex(now)} 周 · ${fmtShortDate(from)} — ${fmtShortDate(to)}`;
+  if (period === 'year') return `近一年 · ${fmtYMD(from)} — ${fmtYMD(to)}`;
+  return `${new Date(now).getFullYear()} 年 ${new Date(now).getMonth() + 1} 月`;
+}
+
+function issueOf(period, now) {
+  const d = new Date(now);
+  if (period === 'week') return `第 ${weekIndex(now)} 周 · 周鉴`;
+  if (period === 'year') return `${d.getFullYear()} 年刊`;
+  return `${d.getMonth() + 1} 月号 · 第 ${d.getMonth() + 1} 期`;
+}
+
+const isPlay = (e) => ['play', 'complete'].includes(e.type);
+
+function buildYearbook({ events = [], period = 'month', now = Date.now() } = {}) {
+  const key = PERIODS.includes(period) ? period : 'month';
+  const w = WORDS[key];
+  const win = windowOf(key, now);
+  const all = (events || []).filter((e) => e && e.song && e.song.name && timeOf(e));
+
+  // 三个尺度各有几条记录：前端据此在标签上标一下，不用点进去才发现是空的
+  const available = {};
+  for (const p of PERIODS) {
+    const range = windowOf(p, now);
+    available[p] = all.filter((e) => {
+      const ts = timeOf(e);
+      return isPlay(e) && ts >= range.from && ts <= range.to;
+    }).length;
+  }
+
+  const list = all.filter((e) => {
+    const ts = timeOf(e);
+    return ts >= win.from && ts <= win.to;
+  });
+
+  const periodMeta = {
+    key,
+    label: labelOf(key, win.from, win.to, now),
+    issue: issueOf(key, now),
+    from: win.from,
+    to: win.to,
+  };
+
+  const plays = list.filter(isPlay);
   if (!plays.length) {
+    // 空态也要指路：这一年有记录、只是这一周没有，就别让人以为应用坏了
+    const CN = { year: '年鉴', month: '月鉴', week: '周鉴' };
+    const UNIT = { year: '一年', month: '个月', week: '一周' };
+    const others = PERIODS.filter((p) => p !== key && available[p] > 0);
+    let dek;
+    if (!others.length) {
+      dek = '近一年还没有播放记录。听一首歌，小报就开始排版了。';
+    } else {
+      const names = others.map((p) => `${CN[p]}（${available[p]} 条）`).join('、');
+      dek = `这${UNIT[key]}还没听歌；${names}里有记录，切过去看看。`;
+    }
     return {
       ok: true,
       empty: true,
-      title: '这一期还是白的',
-      dek: '听几首歌，小报就有东西可写了。',
-      note: '记录只存在本机，不出网。',
+      period: periodMeta,
+      available,
+      title: `${w.thisOne}还是白的`,
+      dek,
+      note: `保留近一年记录 · ${w.span}为空 · 本机生成 · 不出网`,
     };
   }
-
-  const tss = list.map((e) => Number(e.ts) || 0).filter(Boolean);
-  const from = Math.min(...tss);
-  const to = Math.max(...tss);
 
   const hours = new Array(24).fill(0);
   const songs = new Map();
@@ -45,10 +108,10 @@ function buildYearbook({ events = [], now = Date.now() } = {}) {
   let firstLike = null;
 
   for (const e of list) {
-    const ts = Number(e.ts) || 0;
+    const ts = timeOf(e);
     const s = e.song;
     const k = norm(s.name) + '|' + norm(firstArtist(s.artist));
-    if (e.type === 'play' || e.type === 'complete') {
+    if (isPlay(e)) {
       hours[new Date(ts).getHours()] += 1;
       const hit = songs.get(k) || { name: s.name, artist: s.artist || '', count: 0, days: new Map() };
       hit.count += 1;
@@ -65,7 +128,10 @@ function buildYearbook({ events = [], now = Date.now() } = {}) {
       hit.count += 1;
       skips.set(k, hit);
     }
-    if (e.type === 'like' && !firstLike) firstLike = { name: s.name, artist: s.artist || '', at: ts };
+    // 「第一次点红心」取这一期里最早的那条
+    if (e.type === 'like' && (!firstLike || ts < firstLike.at)) {
+      firstLike = { name: s.name, artist: s.artist || '', at: ts };
+    }
   }
 
   // 同一天里重复最多的一首
@@ -97,35 +163,37 @@ function buildYearbook({ events = [], now = Date.now() } = {}) {
     view: list.filter((e) => e.type === 'view').length,
   };
 
-  // 标题：优先讲一件具体的事，没有具体事就说清这个月发生了什么
+  // 标题：优先讲一件具体的事，没有具体事就说清这段时间发生了什么
   let title = '', dek = '';
   if (repeatStrong) {
     title = `${fmtDate(repeat.at)}，你把同一首听了 ${repeat.count} 遍`;
     dek = `《${repeat.name}》—— ${fmtTime(repeat.from)} 到 ${fmtTime(repeat.to)}${repeat.count >= 5 ? '，中间几乎没停过。' : '。'}`;
   } else if (skipTop.length && skipTop[0].count >= 3) {
     title = `《${skipTop[0].name}》被你连跳 ${skipTop[0].count} 次`;
-    dek = '有些歌不是不好，只是今天不想听。';
+    dek = '有些歌不是不好，只是这时候不想听。';
   } else if (firstLike) {
     title = `${fmtDate(firstLike.at)} ${fmtTime(firstLike.at)}，第一次点红心`;
     dek = `给了《${firstLike.name}》。这个时间点，通常不会太清醒。`;
   } else {
-    title = `这段时间，你听了 ${distinct} 首歌`;
-    dek = '还没有哪一首被反复播放——慢慢来。';
+    title = `${w.when}，你听了 ${distinct} 首歌`;
+    dek = key === 'week'
+      ? '这一周还没有哪一首被反复播放——慢慢来。'
+      : key === 'year'
+        ? '这一年还没有哪一首被反复播放——日子还长。'
+        : '这个月还没有哪一首被反复播放——慢慢来。';
   }
 
   const peakText = peaks.length >= 2
-    ? `你的一天有两个高点：${peaks[0].h} 点和 ${peaks[1].h} 点。`
+    ? key === 'year'
+      ? `这一年里，${peaks[0].h} 点和 ${peaks[1].h} 点是你最常在的两个时段。`
+      : `${peaks[0].h} 点和 ${peaks[1].h} 点，是你最常在的两个时段。`
     : peaks.length === 1 ? `你只在 ${peaks[0].h} 点前后听歌。` : '';
 
   return {
     ok: true,
     empty: false,
-    period: {
-      from, to,
-      label: new Date(from).toDateString() === new Date(to).toDateString()
-        ? fmtDate(from)
-        : `${fmtDate(from)} — ${fmtDate(to)}`,
-    },
+    period: periodMeta,
+    available,
     nums: {
       plays: playCount,
       songs: distinct,
@@ -139,8 +207,8 @@ function buildYearbook({ events = [], now = Date.now() } = {}) {
     firstLike,
     repeat: repeatStrong ? repeat : null,
     headline: { title, dek },
-    note: `依据近 30 天内 ${list.length} 条播放记录 · 本机生成 · 不出网`,
+    note: `依据${w.span} ${list.length} 条记录 · 记录保留一年 · 本机生成 · 不出网`,
   };
 }
 
-module.exports = { buildYearbook, DAY };
+module.exports = { buildYearbook, PERIODS, DAY };

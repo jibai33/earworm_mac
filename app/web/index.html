@@ -356,7 +356,7 @@
 
       <section class="b-card home-gazette" id="home-yb-card" role="button" tabindex="0">
         <div class="b-kicker">GAZETTE · 听觉年鉴 <span class="k-right" id="hy-period"></span></div>
-        <div class="hy-title" id="hy-title">这一期还是白的</div>
+        <div class="hy-title" id="hy-title">这个月还是白的</div>
         <div class="hy-nums" id="hy-nums"></div>
         <div class="hy-dek" id="hy-dek"></div>
         <div class="hy-chart" id="hy-chart"></div>
@@ -501,14 +501,26 @@
   <header class="wall-head">
     <div class="wall-kicker">THE WALL <span class="dot">·</span> <span id="wall-meta">—</span></div>
     <div class="wall-title">我的墙</div>
-    <p class="wall-lead">听过的封面按「钉在墙上」排，最近听的先挂。7 天内新挂上的亮一圈暖光；空着的位置是钉子，不是占位符。</p>
+    <p class="wall-lead">一天一面墙。当天听过的封面钉在当天的墙上，退出再进来还是这一面；翻回去能看之前每一天。刚挂上去的那张亮一圈暖光，空着的位置是钉子，不是占位符。</p>
   </header>
+  <div class="wall-daynav">
+    <button id="wall-prev" class="wall-nav" type="button" aria-label="前一天" title="前一天">‹</button>
+    <b id="wall-day">今天</b>
+    <button id="wall-next" class="wall-nav" type="button" aria-label="后一天" title="后一天">›</button>
+    <button id="wall-today" class="wall-nav wide" type="button">回到今天</button>
+  </div>
   <div class="wall-grid" id="wall-grid"></div>
   <p class="wall-foot" id="wall-foot">正在数墙上的钉子……</p>
 </div>
 
 <!-- ══ 听觉年鉴（像素小报） ══ -->
 <div id="page-yearbook" class="page" hidden>
+  <div class="yb-tabs" role="tablist" aria-label="年鉴尺度">
+    <button class="yb-tab" data-period="year" type="button" role="tab">年鉴</button>
+    <button class="yb-tab is-on" data-period="month" type="button" role="tab">月鉴</button>
+    <button class="yb-tab" data-period="week" type="button" role="tab">周鉴</button>
+    <span class="yb-tabs-note">记录保留一年 · 年鉴看得回去年这个时候</span>
+  </div>
   <article class="paper" id="yb-paper">
     <div class="masthead">
       <b>闻 曲 小 报</b>

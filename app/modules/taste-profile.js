@@ -9,8 +9,10 @@ const crypto = require('crypto');
 
 const DATA_DIR = require('../user-paths').DATA_DIR;
 const STORE = path.join(DATA_DIR, 'taste-profiles.json');
-const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_EVENTS = 3000;
+// 事件留一年：听觉年鉴要能看到去年这个时候，唱片墙要能翻回之前每一天。
+// 条数上限按「一年里正常听歌量」给足，避免把去年的记录挤掉。
+const WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+const MAX_EVENTS = 12000;
 const MAX_BATCH = 200;
 const VALID_TYPES = new Set(['play', 'complete', 'skip', 'search', 'view', 'like', 'unlike']);
 const KEY_RE = /^[A-Z0-9]{12,32}$/;

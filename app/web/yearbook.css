@@ -8,6 +8,25 @@
 
 #page-yearbook { max-width: 1000px; margin: 0 auto; }
 
+/* 三种尺度：年鉴 / 月鉴 / 周鉴 */
+.yb-tabs {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.yb-tab {
+  appearance: none; cursor: pointer; font: inherit; font-family: var(--pixel-font);
+  padding: 4px 14px; letter-spacing: .12em;
+  background: var(--px-2); color: var(--px-dim);
+  border: 2px solid var(--px-line); box-shadow: var(--px-shadow);
+}
+.yb-tab:hover { border-color: var(--px-amber); color: var(--px-txt); }
+.yb-tab.is-on {
+  background: var(--px-amber); color: #17120a;
+  border-color: var(--px-amber-hi);
+}
+.yb-tab.is-none { opacity: .45; }
+.yb-tabs-note { color: var(--px-dim); font-size: 12px; margin-left: auto; }
+
 .paper {
   position: relative;
   background: #e7e0cd;

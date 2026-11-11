@@ -23,7 +23,7 @@
     const key = encodeURIComponent(syncKey());
     const [wall, yb, crate] = await Promise.all([
       window.EW.api(`/api/taste/wall?syncKey=${key}`).catch(() => null),
-      window.EW.api(`/api/taste/yearbook?syncKey=${key}`).catch(() => null),
+      window.EW.api(`/api/taste/yearbook?syncKey=${key}&period=month`).catch(() => null),
       window.EW.api(`/api/crate/status?syncKey=${key}`).catch(() => null),
     ]);
     if (wall) state.wall = wall;
@@ -44,18 +44,18 @@
     if (!d) { strip.classList.add('is-empty'); strip.innerHTML = '<div class="hw-tile pin"></div>'.repeat(8); return; }
 
     $('hw-meta').textContent = `${d.hung} / ${d.capacity}`;
-    // 一张都没挂过：只画一排钉子示意，不要把 24 个空格铺满整屏
+    // 今天一张都没挂：只画一排钉子示意，不要把 24 个空格铺满整屏
     if (!d.total) {
       strip.classList.add('is-empty');
       strip.innerHTML = '<div class="hw-tile pin"></div>'.repeat(8);
-      $('hw-note').textContent = '听一首，墙上就多一枚钉子';
+      $('hw-note').textContent = '今天墙上还空着，听一首就挂上了';
       return;
     }
     strip.classList.remove('is-empty');
     // 整面墙缩略：有封面就贴封面，没挂满的位置画成钉子
     const slots = (d.slots && d.slots.length ? d.slots : new Array(d.capacity || CAP).fill(null)).slice(0, CAP);
     strip.innerHTML = '';
-    slots.forEach((s) => {
+    slots.forEach((s, i) => {
       if (!s) {
         const pin = document.createElement('div');
         pin.className = 'hw-tile pin';
@@ -63,7 +63,8 @@
         return;
       }
       const tile = document.createElement('div');
-      tile.className = 'hw-tile' + (s.isNew ? ' is-new' : '') + (s.cover ? '' : ' no-cover');
+      // 同上：只让最新的那张亮着
+      tile.className = 'hw-tile' + (s.fresh && i === 0 ? ' is-fresh' : '') + (s.cover ? '' : ' no-cover');
       tile.title = `${s.name}${s.artist ? ' — ' + s.artist : ''}`;
       if (s.cover) {
         const img = document.createElement('img');
@@ -77,9 +78,9 @@
     });
 
     const note = $('hw-note');
-    if (!d.total) note.textContent = '听一首，墙上就多一枚钉子';
-    else if (d.newIn7d) note.textContent = `7 天内新挂 ${d.newIn7d} 张`;
-    else note.textContent = '按最近听过排序';
+    note.textContent = d.hasMore
+      ? `今天 ${d.total} 首 · 墙满 ${d.capacity} 格`
+      : `今天挂上 ${d.hung} 张`;
   }
 
   /* ---------------- 年鉴摘要 ---------------- */
@@ -92,17 +93,17 @@
     if (!title || !nums || !chart) return;
 
     if (!d || d.empty) {
-      $('hy-period').textContent = '';
-      title.textContent = (d && d.title) || '这一期还是白的';
+      $('hy-period').textContent = `${new Date().getMonth() + 1} 月`;
+      title.textContent = (d && d.title) || '这个月还是白的';
       nums.innerHTML = '';
       const dek0 = $('hy-dek');
       if (dek0) dek0.textContent = (d && d.dek) || '';
       chart.innerHTML = new Array(24).fill('<span class="hy-bar"></span>').join('');
-      $('hy-note').textContent = '只读本机记录 · 不出网';
+      $('hy-note').textContent = '本月 · 本机记录 · 不出网';
       return;
     }
 
-    $('hy-period').textContent = d.period && d.period.label ? d.period.label : '';
+    $('hy-period').textContent = `${new Date().getMonth() + 1} 月`;
     title.textContent = d.headline && d.headline.title ? d.headline.title : '这段时间，你在听';
     const n = d.nums || {};
     nums.innerHTML = `
@@ -122,7 +123,7 @@
       return `<span class="${cls}" style="height:${hh}px" title="${h} 点 · ${v} 首"></span>`;
     }).join('');
 
-    $('hy-note').textContent = '近 30 天 · 本机记录 · 不出网';
+    $('hy-note').textContent = '本月 · 本机记录 · 不出网';
   }
 
   /* ---------------- 唱片店进度 ---------------- */

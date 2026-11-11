@@ -1,44 +1,60 @@
 /* ====================================================================
    闻曲 · 听觉年鉴（前端）
    ---------------------------------------------------------------
-   · 数据来自 /api/taste/yearbook（本机事件流，近 30 天）
+   · 数据来自 /api/taste/yearbook（本机事件流，记录留一年）
+   · 三个尺度：年鉴（近一年）/ 月鉴（本月）/ 周鉴（本周），同一套版面
    · 版面规则：标题必须是一件具体的事，数字只在撑得住故事的地方出现
    · 「撕下来存 PNG」用 canvas 重画一遍（不引第三方截图库），默认不含账号信息
    ==================================================================== */
 (function () {
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, loading: false };
+  const state = { data: null, loading: false, period: 'month', seq: 0 };
   const esc = (s) => String(s || '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-  const CN_MONTH = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+  const PERIOD_CN = { year: '年鉴', month: '月鉴', week: '周鉴' };
+  const WHEN = { year: '这一年', month: '这个月', week: '这一周' };
 
   async function load(force) {
-    if (state.loading) return;
+    // 切尺度时允许打断上一请求：只渲染最后发出的那一次
     if (!force && state.data) { render(); return; }
+    const seq = ++state.seq;
     state.loading = true;
     try {
       const key = (window.Taste && Taste.getSyncKey && Taste.getSyncKey()) || '';
-      const r = await window.EW.api(`/api/taste/yearbook?syncKey=${encodeURIComponent(key)}`);
+      const r = await window.EW.api(`/api/taste/yearbook?syncKey=${encodeURIComponent(key)}&period=${state.period}`);
+      if (seq !== state.seq) return;            // 已经有更新的请求了，丢掉这次
       state.data = r;
       render();
     } catch (e) {
+      if (seq !== state.seq) return;
       const t = $('yb-title');
       if (t) t.textContent = `小报印不出来：${e.message}`;
     } finally {
-      state.loading = false;
+      if (seq === state.seq) state.loading = false;
     }
+  }
+
+  function renderTabs(d) {
+    const tabs = document.querySelectorAll('.yb-tab');
+    tabs.forEach((btn) => {
+      const p = btn.dataset.period;
+      btn.classList.toggle('is-on', p === state.period);
+      const n = d && d.available ? d.available[p] : null;
+      btn.classList.toggle('is-none', n === 0 && p !== state.period);
+      btn.title = n === 0 ? `这一${p === 'year' ? '年' : p === 'month' ? '月' : '周'}还没听歌` : '';
+    });
   }
 
   function render() {
     const d = state.data;
     if (!d) return;
-    const m = new Date().getMonth() + 1;
-    const issue = $('yb-issue');
-    if (issue) issue.textContent = `${CN_MONTH[m - 1]}月号 · 第 ${m} 期`;
 
+    const issue = $('yb-issue');
+    if (issue) issue.textContent = d.period && d.period.issue ? d.period.issue : `${PERIOD_CN[state.period]}`;
     $('yb-title').textContent = d.headline ? d.headline.title : d.title;
     $('yb-dek').textContent = d.headline ? d.headline.dek : d.dek;
     $('yb-period').textContent = d.period ? d.period.label : '—';
     $('yb-note').textContent = d.note || '';
+    renderTabs(d);
 
     const nums = $('yb-nums');
     if (nums) {
@@ -72,7 +88,7 @@
     if (fl) {
       fl.innerHTML = d.firstLike
         ? `${fmtShort(d.firstLike.at)} · 《${esc(d.firstLike.name)}》`
-        : '这段时间还没点过红心';
+        : `${WHEN[state.period]}还没点过红心`;
     }
     const body = $('yb-body');
     if (body) body.hidden = !!d.empty;
@@ -86,7 +102,7 @@
       if (c.like) bits.push(`点了 ${c.like} 次红心`);
       if (c.view) bits.push(`翻过 ${c.view} 个角落`);
       fine.textContent = bits.length
-        ? `这个月你还${bits.join('、')}。数字只写这一行，剩下的留给具体的歌。`
+        ? `${WHEN[state.period]}你还${bits.join('、')}。数字只写这一行，剩下的留给具体的歌。`
         : '';
     }
   }
@@ -127,16 +143,15 @@
     c.fillStyle = ink; c.font = F(34); c.textBaseline = 'alphabetic';
     c.fillText('闻 曲 小 报', 56, y);
     c.fillStyle = dim; c.font = F(16);
-    const m = new Date().getMonth() + 1;
     c.textAlign = 'right';
-    c.fillText(`${CN_MONTH[m - 1]}月号 · 第 ${m} 期`, W - 56, y - 4);
+    c.fillText((d.period && d.period.issue) || PERIOD_CN[state.period], W - 56, y - 4);
     c.textAlign = 'left';
 
     y += 26; c.strokeStyle = ink; c.lineWidth = 4;
     c.beginPath(); c.moveTo(56, y); c.lineTo(W - 56, y); c.stroke();
 
     y += 34; c.fillStyle = dim; c.font = F(16);
-    c.fillText('听 觉 年 鉴', 56, y);
+    c.fillText(`听 觉 ${PERIOD_CN[state.period]}`, 56, y);
     c.textAlign = 'right'; c.fillText(d.period ? d.period.label : '', W - 56, y); c.textAlign = 'left';
 
     y += 20; c.strokeStyle = ink; c.lineWidth = 2;
@@ -215,12 +230,22 @@
     const a = document.createElement('a');
     a.href = url;
     const d0 = new Date();
-    a.download = `闻曲小报-${d0.getFullYear()}${String(d0.getMonth() + 1).padStart(2, '0')}.png`;
+    const tag = state.period === 'week' ? `第${weekNo(d0)}周` : state.period === 'year' ? `${d0.getFullYear()}年` : `${d0.getFullYear()}${String(d0.getMonth() + 1).padStart(2, '0')}`;
+    a.download = `闻曲小报-${PERIOD_CN[state.period]}-${tag}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     const hint = document.querySelector('.yb-hint');
-    if (hint) hint.textContent = '已存到下载文件夹（不含账号信息）';
+    if (hint) hint.textContent = `已存到下载文件夹（${PERIOD_CN[state.period]} · 不含账号信息）`;
+  }
+
+  // 与服务端同一算法（ISO 口径）：周一为一周之始，用本周四定年份
+  function weekNo(d) {
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    t.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+    const thu = new Date(t.getTime() + 3 * 86400000);
+    const jan1 = new Date(thu.getFullYear(), 0, 1);
+    return Math.floor(Math.round((thu - jan1) / 86400000) / 7) + 1;
   }
 
   function openPage() {
@@ -233,11 +258,27 @@
     if (entry) entry.addEventListener('click', openPage);
     const ex = $('yb-export');
     if (ex) ex.addEventListener('click', exportPNG);
+
+    document.querySelectorAll('.yb-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.period;
+        if (!p || p === state.period) return;
+        state.period = p;
+        // 先切标签再请求，视觉上立刻有反馈
+        renderTabs(state.data);
+        load(true);
+      });
+    });
+
     document.addEventListener('ew:page', (e) => { if (e.detail === 'page-yearbook') load(true); });
     load(false);
   }
 
-  window.Yearbook = { openPage, load, exportPNG, debug: () => ({ has: !!state.data }) };
+  window.Yearbook = {
+    openPage, load, exportPNG,
+    setPeriod: (p) => { if (PERIOD_CN[p]) { state.period = p; load(true); } },
+    debug: () => ({ has: !!state.data, period: state.period }),
+  };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
   else bind();

@@ -61,8 +61,8 @@
   content: ''; position: absolute; inset: 22%;
   background: var(--px-note) center/contain no-repeat; opacity: .8;
 }
-/* 7 天内新挂的：暖光边 */
-.hw-tile.is-new { border-color: var(--px-amber); box-shadow: 2px 2px 0 rgba(230, 176, 106, .28); }
+/* 刚听过的：暖光边（墙是当天的，所以标记的是「刚」，不是「新」） */
+.hw-tile.is-fresh { border-color: var(--px-amber); box-shadow: 2px 2px 0 rgba(230, 176, 106, .28); }
 /* 空位是钉子：4px 方块钉在板中央，比虚线格子安静 */
 .hw-tile.pin { background: rgba(8, 9, 12, .5); border: 2px dashed rgba(72, 84, 102, .55); }
 .hw-tile.pin::after {

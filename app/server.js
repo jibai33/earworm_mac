@@ -742,8 +742,8 @@ const server = http.createServer(async (req, res) => {
       }
       if (!tasteProfile.isValidKey(key)) {
         // 首次启动时客户端可能还没有同步码：墙面与小报按「空库」回，不要甩 400
-        if (action === 'wall') return sendJSON(res, wall.buildWall({ events: [] }));
-        if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: [] }));
+        if (action === 'wall') return sendJSON(res, wall.buildWall({ events: [], day: q.get('day') }));
+        if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: [], period: q.get('period') }));
         return sendJSON(res, { ok: false, error: '同步码无效（应为 EW-XXXX-XXXX-XXXX）' }, 400);
       }
       const p = tasteProfile.rawProfile(key);
@@ -785,8 +785,9 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, await night.surprise({ events: p.events, searchFn: tasteSearch }));
       }
       // 唱片墙 / 听觉年鉴：都只读本机事件流，不做任何外部请求
-      if (action === 'wall') return sendJSON(res, wall.buildWall({ events: p.events }));
-      if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: p.events }));
+      // 墙按天取（?day=YYYY-MM-DD，省略是今天）；年鉴按尺度取（?period=year|month|week）
+      if (action === 'wall') return sendJSON(res, wall.buildWall({ events: p.events, day: q.get('day') }));
+      if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: p.events, period: q.get('period') }));
       if (action === 'settings' && req.method === 'POST') return sendJSON(res, tasteProfile.setSettings(key, body.settings || body));
       if (action === 'feedback' && req.method === 'POST') return sendJSON(res, tasteProfile.addFeedback(key, body));
       if (action === 'clear' && req.method === 'POST') return sendJSON(res, tasteProfile.clearProfile(key, { keepSettings: body.keepSettings !== false }));
