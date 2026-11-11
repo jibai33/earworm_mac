@@ -628,46 +628,58 @@
   </div>
 </div>
 
-<!-- ══ 登录彩蛋：暗号门 + 8-bit 逐帧动画 ══ -->
-<div id="egg-modal" class="egg-modal" hidden aria-hidden="true" data-kind="first">
-  <div class="egg-frame" role="dialog" aria-modal="true" aria-label="登录彩蛋" tabindex="-1">
-    <div class="egg-top">
-      <span class="egg-badge" id="egg-badge">EASTER EGG 01</span>
-      <span class="egg-title" id="egg-title">初次相遇</span>
-      <span class="egg-dots">■ ■ ■</span>
-    </div>
-    <div class="egg-screen">
-      <canvas id="egg-canvas" width="192" height="108"></canvas>
-      <div class="egg-scanlines"></div>
-      <div class="egg-idle" id="egg-idle">
+<!-- ══ 登录彩蛋：全屏像素演出（暗号门 → 四幕分镜 → 落版） ══ -->
+<div id="egg-modal" class="egg-stage" hidden aria-hidden="true" data-kind="first" data-phase="gate">
+  <canvas id="egg-canvas" class="egg-canvas" width="192" height="108"></canvas>
+  <div class="egg-grain" aria-hidden="true"></div>
+  <div class="egg-vignette" aria-hidden="true"></div>
+  <div class="egg-flash" id="egg-flash" aria-hidden="true"></div>
+
+  <header class="egg-hud">
+    <span class="egg-badge" id="egg-badge">EASTER EGG 01</span>
+    <div class="egg-track" id="egg-track" aria-label="演出进度"><i></i><i></i><i></i><i></i></div>
+    <button class="egg-corner" id="egg-skip" type="button">跳过 · ESC</button>
+  </header>
+
+  <!-- 幕间字幕，独立于画布，避免遮挡像素主体 -->
+  <div class="egg-caption" id="egg-caption" aria-live="polite">
+    <b id="egg-scene-title"></b>
+    <span id="egg-scene-line"></span>
+  </div>
+
+  <!-- 全屏暗号门 -->
+  <section class="egg-gate" id="egg-gate">
+    <div class="egg-gate-box" id="egg-gate-box" role="dialog" aria-modal="true" aria-label="登录彩蛋暗号" tabindex="-1">
+      <div class="egg-gate-head">
         <button class="egg-eye" id="egg-eye" type="button" aria-label="看看它">◉</button>
-        <p id="egg-riddle">输入四个字，按回车</p>
+        <div class="egg-gate-name">
+          <span class="egg-kicker" id="egg-kicker">HIDDEN TRACK 01</span>
+          <h2 id="egg-title">初次相遇</h2>
+        </div>
       </div>
-    </div>
-    <!-- 文案独立成一条像素对话框，不压住画布里的像素小人 -->
-    <div class="egg-scene-copy" id="egg-scene-copy">
-      <b id="egg-scene-title"></b>
-      <span id="egg-scene-line"></span>
-    </div>
-    <div class="egg-entry" id="egg-entry">
+      <p class="egg-riddle" id="egg-riddle">输入四个字，按回车</p>
       <p class="egg-sub" id="egg-subtitle"></p>
       <div class="egg-cells" id="egg-cells">
         <i></i><i></i><i></i><i></i>
-        <input id="egg-input" class="egg-input" type="text" maxlength="16" autocomplete="off" spellcheck="false" aria-label="输入暗号">
+        <input id="egg-input" class="egg-input" type="text" maxlength="24" autocomplete="off" spellcheck="false" aria-label="输入暗号">
       </div>
       <div class="egg-status" id="egg-status">输入四个字，按回车</div>
       <div class="egg-actions">
         <button class="egg-btn" id="egg-hint" type="button">给点提示</button>
-        <button class="egg-btn" id="egg-skip" type="button">跳过</button>
+        <button class="egg-btn solid" id="egg-submit" type="button">确认 →</button>
       </div>
+      <p class="egg-foot">输入四个字 · 回车确认 · ESC 跳过</p>
     </div>
-    <div class="egg-end" id="egg-end" hidden>
-      <div class="egg-actions">
-        <button class="egg-btn" id="egg-replay" type="button">再看一次</button>
-        <button class="egg-btn solid" id="egg-close" type="button">继续听歌 →</button>
-      </div>
+  </section>
+
+  <!-- 落版 -->
+  <footer class="egg-end" id="egg-end" hidden>
+    <div class="egg-end-title" id="egg-end-title">初次见面，这里是闻曲</div>
+    <div class="egg-actions">
+      <button class="egg-btn" id="egg-replay" type="button">↺ 再看一次</button>
+      <button class="egg-btn solid" id="egg-close" type="button">继续听歌 →</button>
     </div>
-  </div>
+  </footer>
 </div>
 
 <!-- 角落小乐手已关闭（取消显示宠物）。
