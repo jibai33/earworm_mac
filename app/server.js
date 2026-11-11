@@ -37,6 +37,7 @@ const qqApi = require('./modules/qq-api.js');
 const qqQrLogin = require('./modules/qq-qr-login.js');
 const xyApi = require('./modules/xiaoyuzhou-api.js');
 const qishuiQrLogin = require('./modules/qishui-qr-login.js');
+const loginEgg = require('./modules/login-egg.js');
 const electronRuntime = require('./modules/electron-runtime');
 const QISHUI_QR_AVAILABLE = electronRuntime.isChromiumShim ? !!electronRuntime.findChrome() : true;
 const tasteProfile = require('./modules/taste-profile.js');
@@ -423,6 +424,26 @@ const server = http.createServer(async (req, res) => {
     // ---------- 登录态 ----------
     if (pn === '/api/login/status') return sendJSON(res, await getLoginInfo());
     if (pn === '/api/logout') { saveCookie(''); return sendJSON(res, { ok: true }); }
+
+    // ==================== 登录彩蛋：暗号门 / 像素动画状态 ====================
+    if (pn === '/api/login/egg/status') return sendJSON(res, loginEgg.status());
+    if (pn === '/api/login/egg/event') {
+      const body = req.method === 'POST' ? await readBody(req) : {};
+      const type = String(body.type || q.get('type') || '');
+      const provider = String(body.provider || q.get('provider') || '');
+      if (type === 'login') return sendJSON(res, loginEgg.markLogin(provider));
+      if (type === 'logout') return sendJSON(res, loginEgg.markLogout(provider));
+      return sendJSON(res, { ok: false, error: 'UNKNOWN_EGG_EVENT' }, 400);
+    }
+    if (pn === '/api/login/egg/check') {
+      const body = req.method === 'POST' ? await readBody(req) : {};
+      return sendJSON(res, loginEgg.check(body.phrase || q.get('phrase') || ''));
+    }
+    if (pn === '/api/login/egg/skip') return sendJSON(res, loginEgg.skip());
+    if (pn === '/api/login/egg/replay') {
+      const body = req.method === 'POST' ? await readBody(req) : {};
+      return sendJSON(res, loginEgg.replay(body.kind || q.get('kind') || 'first'));
+    }
 
     // ---------- 用户歌单 ----------
     if (pn === '/api/user/playlists') {

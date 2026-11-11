@@ -1,0 +1,188 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 · 登录彩蛋 + 已登录账号卡片
+   8-bit 规则：2px 硬边框、零圆角、硬投影、steps() 阶梯动效、
+   canvas 逻辑像素放大不插值。只在 pixel.css 之后引入。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─────────────── 彩蛋暗号门 ─────────────── */
+.egg-modal {
+  position: fixed; inset: 0; z-index: 120;
+  display: grid; place-items: center; padding: 20px;
+  background: rgba(4, 5, 7, .88);
+  font-family: var(--pixel-font, 'Ark Pixel 12', monospace);
+}
+.egg-modal[hidden] { display: none !important; }
+.egg-frame {
+  width: min(92vw, 520px);
+  background: var(--px-1, #0e1014);
+  border: 2px solid var(--px-amber, #e6b06a);
+  box-shadow: 8px 8px 0 #000, 0 0 0 2px #000;
+  padding: 14px;
+  max-height: 92dvh; overflow-y: auto;
+  animation: eggIn .32s steps(5, end) both;
+}
+@keyframes eggIn {
+  from { transform: translateY(10px) scale(.96); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.egg-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-bottom: 2px solid var(--px-line, #2b323d);
+  padding: 0 2px 10px; margin-bottom: 12px;
+}
+.egg-badge {
+  font-size: 12px; color: #08090c; background: var(--px-amber, #e6b06a);
+  padding: 3px 6px; letter-spacing: .06em; white-space: nowrap;
+}
+.egg-title { font-size: 12px; color: var(--px-txt, #eae4d6); letter-spacing: .18em; }
+.egg-dots { font-size: 12px; color: var(--px-line, #2b323d); letter-spacing: .3em; }
+.egg-modal[data-kind="return"] .egg-frame { border-color: var(--px-green, #8fb8ae); }
+.egg-modal[data-kind="return"] .egg-badge { background: var(--px-green, #8fb8ae); }
+
+.egg-screen {
+  position: relative; border: 2px solid var(--px-line, #2b323d);
+  background: #08090c; overflow: hidden; line-height: 0;
+}
+#egg-canvas {
+  display: block; width: 100%; height: auto; aspect-ratio: 16 / 9;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
+.egg-scanlines {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .3) 0 2px, transparent 2px 4px);
+}
+.egg-screen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .55), inset 0 0 40px rgba(0, 0, 0, .5);
+}
+/* 独立占位对话框：未解锁是虚线槽，解锁后亮起，避免遮挡画布主体 */
+.egg-scene-copy {
+  margin: 10px 0 0; padding: 7px 8px; min-height: 80px; box-sizing: border-box;
+  border: 2px dashed var(--px-line, #2b323d); background: var(--px-0, #08090c);
+  text-align: center; line-height: 1.8;
+}
+.egg-scene-copy:not(.show) { display: grid; place-items: center; }
+.egg-scene-copy::before {
+  content: '· · · 待 解 锁 · · ·'; display: block;
+  font-size: 12px; color: var(--px-dim, #98a0a8); letter-spacing: .1em;
+}
+.egg-scene-copy b, .egg-scene-copy span { visibility: hidden; }
+.egg-scene-copy.show { border: 2px solid var(--px-amber, #e6b06a); box-shadow: 3px 3px 0 #000; animation: eggCopy .4s steps(4, end) both; }
+.egg-scene-copy.show::before { display: none; }
+.egg-scene-copy.show b, .egg-scene-copy.show span { visibility: visible; }
+.egg-scene-copy b { display: block; font-size: 24px; color: var(--px-amber-hi, #f6cd93); letter-spacing: .08em; }
+.egg-scene-copy span { display: block; font-size: 12px; color: var(--px-txt, #eae4d6); }
+@keyframes eggCopy { from { opacity: .2; } to { opacity: 1; } }
+
+.egg-idle {
+  position: absolute; left: 8px; right: 8px; top: 8px;
+  display: flex; align-items: flex-start; gap: 8px; line-height: 1.6;
+  pointer-events: none; transition: opacity .2s steps(2, end);
+}
+.egg-idle.gone { opacity: 0; }
+.egg-eye {
+  pointer-events: auto; cursor: pointer; flex: 0 0 auto;
+  width: 22px; height: 22px; padding: 0;
+  background: var(--px-2, #151920); color: var(--px-amber, #e6b06a);
+  border: 2px solid var(--px-amber, #e6b06a); border-radius: 0;
+  font: 12px/18px var(--pixel-font, monospace); text-align: center;
+}
+.egg-eye.blink { animation: eggBlink .3s steps(2, end); }
+@keyframes eggBlink { 0%, 100% { background: var(--px-2, #151920); } 50% { background: var(--px-amber, #e6b06a); color: #08090c; } }
+.egg-idle p {
+  margin: 0; font-size: 12px; color: var(--px-txt, #eae4d6);
+  background: rgba(8, 9, 12, .82); padding: 3px 5px; border-left: 2px solid var(--px-amber, #e6b06a);
+  max-width: 78%;
+}
+
+.egg-entry { padding: 12px 2px 2px; text-align: center; }
+.egg-entry[hidden], .egg-end[hidden] { display: none !important; }
+.egg-entry.shake { animation: eggShake .34s steps(4, end); }
+@keyframes eggShake {
+  0%, 100% { transform: none; } 25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); } 75% { transform: translateX(-3px); }
+}
+.egg-sub { margin: 0 0 10px; font-size: 12px; color: var(--px-dim, #98a0a8); line-height: 1.7; }
+.egg-cells { position: relative; display: flex; justify-content: center; gap: 8px; }
+.egg-cells i {
+  display: grid; place-items: center;
+  width: 46px; height: 46px; box-sizing: border-box;
+  border: 2px solid var(--px-line, #2b323d); background: var(--px-2, #151920);
+  font-style: normal; font-size: 24px; color: var(--px-amber-hi, #f6cd93);
+  box-shadow: 3px 3px 0 #000;
+}
+.egg-cells i.filled { border-color: var(--px-amber, #e6b06a); background: var(--px-3, #1d232c); }
+.egg-cells i.fixed { border-color: var(--px-green, #8fb8ae); color: var(--px-green, #8fb8ae); }
+.egg-input {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 224px; height: 46px; opacity: 0;
+  border: 0; background: transparent; color: transparent; caret-color: transparent;
+  font-size: 16px; outline: none;
+}
+/* 解锁后收起输入格子与按钮，只留一行状态，让动画与文案成为主角 */
+.egg-entry.accepted .egg-cells,
+.egg-entry.accepted .egg-actions,
+.egg-entry.accepted .egg-sub { display: none; }
+.egg-entry.accepted .egg-cells i { border-color: var(--px-green, #8fb8ae); }
+.egg-status {
+  min-height: 20px; margin: 10px 0 6px; font-size: 12px;
+  color: var(--px-dim, #98a0a8); line-height: 1.6;
+}
+.egg-status[data-mode="error"] { color: var(--px-red, #d1483a); }
+.egg-status[data-mode="hint"] { color: var(--px-green, #8fb8ae); }
+.egg-status[data-mode="ok"] { color: var(--px-amber-hi, #f6cd93); }
+.egg-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.egg-btn {
+  font-family: var(--pixel-font, monospace); font-size: 12px;
+  padding: 7px 14px; cursor: pointer; border-radius: 0;
+  background: var(--px-2, #151920); color: var(--px-txt, #eae4d6);
+  border: 2px solid var(--px-line, #2b323d); box-shadow: 3px 3px 0 #000;
+}
+.egg-btn:hover { border-color: var(--px-amber, #e6b06a); color: var(--px-amber-hi, #f6cd93); }
+.egg-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+.egg-btn.solid { background: var(--px-amber, #e6b06a); border-color: var(--px-amber-hi, #f6cd93); color: #08090c; }
+.egg-end { padding-top: 12px; }
+
+/* ─────────────── 已登录：账号卡片 ─────────────── */
+.lp-account { text-align: left; font-family: var(--pixel-font, monospace); }
+.lp-account[hidden], .lp-form[hidden] { display: none !important; }
+.acct-head { display: flex; align-items: center; gap: 12px; padding: 4px 0 12px; border-bottom: 2px solid var(--px-line, #2b323d); }
+.acct-avatar {
+  flex: 0 0 auto; width: 62px; height: 62px; box-sizing: border-box;
+  border: 2px solid var(--px-amber, #e6b06a); background: var(--px-2, #151920);
+  box-shadow: 3px 3px 0 #000; display: grid; place-items: center; overflow: hidden;
+}
+.acct-avatar img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.acct-glyph { font-size: 24px; color: var(--px-amber, #e6b06a); }
+.acct-who { min-width: 0; flex: 1; }
+.acct-who b { display: block; font-size: 24px; color: var(--px-txt, #eae4d6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-who small { display: block; font-size: 12px; color: var(--px-dim, #98a0a8); margin-top: 4px; }
+.acct-state { flex: 0 0 auto; font-size: 12px; color: #08090c; background: var(--px-green, #8fb8ae); padding: 3px 6px; }
+.acct-state::before { content: '■ '; }
+.acct-meta { margin: 12px 0; border: 2px solid var(--px-line, #2b323d); background: var(--px-0, #08090c); }
+.acct-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 9px; font-size: 12px; border-bottom: 2px solid var(--px-line, #2b323d); }
+.acct-row:last-child { border-bottom: 0; }
+.acct-row span { color: var(--px-dim, #98a0a8); flex: 0 0 auto; }
+.acct-row b { color: var(--px-txt, #eae4d6); font-weight: 400; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-caps { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 14px; }
+.acct-caps i { font-style: normal; font-size: 12px; padding: 3px 6px; border: 2px solid var(--px-line, #2b323d); color: var(--px-green, #8fb8ae); background: var(--px-2, #151920); }
+.acct-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.acct-btn {
+  font-family: var(--pixel-font, monospace); font-size: 12px; padding: 7px 12px;
+  cursor: pointer; border-radius: 0; background: var(--px-2, #151920);
+  color: var(--px-txt, #eae4d6); border: 2px solid var(--px-line, #2b323d);
+  box-shadow: 3px 3px 0 #000;
+}
+.acct-btn:hover { border-color: var(--px-amber, #e6b06a); color: var(--px-amber-hi, #f6cd93); }
+.acct-btn.danger { color: var(--px-red, #d1483a); border-color: rgba(209, 72, 58, .6); }
+.acct-btn.danger:hover { background: var(--px-red, #d1483a); color: #08090c; }
+.acct-btn.ghost { color: var(--px-dim, #98a0a8); }
+.acct-tip { margin: 12px 0 0; font-size: 12px; color: var(--px-dim, #98a0a8); text-align: center; line-height: 1.7; }
+
+@media (max-width: 520px) {
+  .egg-frame { padding: 10px; }
+  .egg-cells i { width: 40px; height: 40px; font-size: 24px; }
+  .egg-input { width: 200px; }
+  .egg-scene-copy b { font-size: 24px; }
+  .acct-who b { font-size: 24px; }
+}

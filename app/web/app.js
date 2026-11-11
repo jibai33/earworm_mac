@@ -50,6 +50,10 @@ const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s
 const escapeHtml = (s) => String(s || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const coverUrl = (u) => u ? apiUrl(`/api/cover?url=${encodeURIComponent(u)}`) : '';
 const plural = (n) => n >= 10000 ? (n / 10000).toFixed(1) + ' 万' : n;
+/* 登录彩蛋：跨启动记住各平台登录位图，只在「状态真的变化」时上报事件 */
+let eggLoginMap = null;
+try { eggLoginMap = JSON.parse(localStorage.getItem('ew_login_map') || 'null'); } catch { }
+
 async function api(path, opts) {
   let r;
   try { r = await fetch(apiUrl(path), opts); }
@@ -387,6 +391,8 @@ async function refreshAccountStatus(force) {
   renderAccountButton(d);
   renderSourceBar(d);
   renderAccountOverview(d);
+  applyLoginPanels();
+  syncLoginEggEvents(d);
   if (d.degraded) {
     $('unified-section').hidden = false;
     $('unified-home').innerHTML = '<div class="u-empty">当前服务未启用统一音源接口，请升级本地 server.js 后刷新。' + '</div>';
@@ -1242,20 +1248,148 @@ function paintKaraoke(idx, c) {
   }
 }
 
-/* ---------- 登录弹窗（三平台） ---------- */
+/* ---------- 已登录：账号信息卡片（不再显示扫码区） ---------- */
+const ACCT_IDS = ['netease', 'qishui', 'qq', 'xy'];
+const ACCT_LOGOUT_API = {
+  netease: '/api/logout', qishui: '/api/qishui/logout',
+  qq: '/api/qq/logout', xy: '/api/xy/logout',
+};
+function avatarUrl(p) {
+  const a = p && p.avatar;
+  if (!a) return '';
+  if (typeof a === 'string') return a;
+  return a.smallPicUrl || a.thumbnailUrl || a.picUrl || a.middlePicUrl || '';
+}
+function renderAcctPanel(p) {
+  const box = $('lp-' + p.id + '-account');
+  if (!box) return;
+  const name = String(p.nickname || p.userId || p.label || '已登录');
+  const uid = String(p.userId || '—');
+  const detail = String(p.detail || (p.id === 'qishui' ? '扫码登录' : '已连接'));
+  const via = (p.loginMethods || []).join(' / ') || p.hint || '扫码授权';
+  const caps = (p.capabilities || []).slice(0, 8);
+  const av = avatarUrl(p);
+  box.innerHTML = `
+    <div class="acct-head">
+      <div class="acct-avatar">${av
+        ? `<img src="${escapeHtml(av)}" alt="">`
+        : `<span class="acct-glyph">${escapeHtml(p.glyph || '源')}</span>`}</div>
+      <div class="acct-who"><b>${escapeHtml(name)}</b><small>${escapeHtml(p.label || PROVIDER_LABEL[p.id] || p.id)}</small></div>
+      <span class="acct-state">已连接</span>
+    </div>
+    <div class="acct-meta">
+      <div class="acct-row"><span>账号 ID</span><b>${escapeHtml(uid)}</b></div>
+      <div class="acct-row"><span>账号状态</span><b>${escapeHtml(detail)}</b></div>
+      <div class="acct-row"><span>登录方式</span><b>${escapeHtml(String(via))}</b></div>
+    </div>
+    <div class="acct-caps">${caps.length
+      ? caps.map(c => `<i>${escapeHtml(String(c))}</i>`).join('')
+      : '<i>曲库与播放已解锁</i>'}</div>
+    <div class="acct-actions">
+      <button class="acct-btn" data-act="refresh">刷新状态</button>
+      <button class="acct-btn ghost" data-act="egg-first">彩蛋 · 初次相遇</button>
+      <button class="acct-btn ghost" data-act="egg-return">彩蛋 · 久别重逢</button>
+      <button class="acct-btn danger" data-act="logout">退出登录</button>
+    </div>
+    <p class="acct-tip">凭据只存在本机；退出后需重新授权，重新登录会有一枚新彩蛋。</p>`;
+  box.querySelectorAll('[data-act]').forEach(btn => {
+    btn.onclick = async () => {
+      const act = btn.dataset.act;
+      if (act === 'refresh') { await refreshAccountStatus(true); applyLoginPanels(); return; }
+      if (act === 'egg-first' || act === 'egg-return') {
+        if (window.Egg) Egg.replay(act === 'egg-first' ? 'first' : 'return');
+        return;
+      }
+      if (act === 'logout') await logoutProvider(p.id);
+    };
+  });
+}
+function applyLoginPanels() {
+  const list = state.accountStatus && Array.isArray(state.accountStatus.providers)
+    ? state.accountStatus.providers : [];
+  ACCT_IDS.forEach(id => {
+    const form = $('lp-' + id + '-form'), panel = $('lp-' + id + '-account');
+    if (!form || !panel) return;
+    const p = list.find(x => x.id === id);
+    const on = !!(p && p.loggedIn);
+    form.hidden = on;
+    panel.hidden = !on;
+    if (on) {
+      renderAcctPanel(p);
+      // 已经登录就别再让二维码在后台空转
+      if (id === 'qishui') {
+        cancelQishuiQr();
+        const im = $('qishui-qr-img'); if (im) im.hidden = true;
+      }
+      if (id === 'qq') {
+        cancelQQQr();
+        const im = $('qq-qr-img'); if (im) im.hidden = true;
+      }
+      if (id === 'netease') { clearInterval(state.qrTimer); state.qrTimer = null; }
+    }
+  });
+}
+async function logoutProvider(id) {
+  if (!confirm(`退出「${PROVIDER_LABEL[id] || id}」并清除本机凭据？`)) return;
+  try { await api(ACCT_LOGOUT_API[id]); } catch { /* 忽略 */ }
+  try { await postEggEvent('logout', id); } catch { /* 忽略 */ }
+  // 先落位图，避免状态刷新时把同一次退出重复上报
+  if (eggLoginMap) {
+    eggLoginMap[id] = false;
+    try { localStorage.setItem('ew_login_map', JSON.stringify(eggLoginMap)); } catch { }
+  }
+  await refreshAccountStatus(true);
+  applyLoginPanels();
+  refreshLoginStatus();
+}
+function postEggEvent(type, provider) {
+  return api('/api/login/egg/event', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, provider }),
+  });
+}
+/* 只在「未登录 → 已登录」或反向变化时上报，应用启动不误弹彩蛋 */
+async function syncLoginEggEvents(d) {
+  if (!d || d.degraded || !Array.isArray(d.providers)) return;
+  const map = {};
+  ACCT_IDS.forEach(id => { map[id] = !!((d.providers.find(p => p.id === id) || {}).loggedIn); });
+  const prev = eggLoginMap;
+  eggLoginMap = map;
+  try { localStorage.setItem('ew_login_map', JSON.stringify(map)); } catch { }
+  if (!prev) return; // 第一次只建立基线
+  const wentOn = ACCT_IDS.filter(id => map[id] && !prev[id]);
+  const wentOff = ACCT_IDS.filter(id => !map[id] && prev[id]);
+  if (wentOn.length) await postEggEvent('login', wentOn[0]);
+  else if (wentOff.length) await postEggEvent('logout', wentOff[0]);
+  if (window.Egg) Egg.poll();
+}
+
+/* ---------- 登录弹窗（多平台） ---------- */
 const LOGIN_TABS = ['all', 'netease', 'qishui', 'qq', 'xy'];
+function providerLoggedIn(id) {
+  const d = state.accountStatus;
+  if (!d || d.degraded || !Array.isArray(d.providers)) return false;
+  return !!((d.providers.find(p => p.id === id) || {}).loggedIn);
+}
 function switchLoginTab(lp) {
   const tab = LOGIN_TABS.includes(lp) ? lp : 'all';
   $('login-tabs').querySelectorAll('.login-tab').forEach(b => b.classList.toggle('cur', b.dataset.lp === tab));
   LOGIN_TABS.forEach(p => { $('lp-' + p).hidden = p !== tab; });
+  applyLoginPanels();
   if (tab === 'all') refreshAccountStatus();
-  // 离开扫码页就停掉轮询，避免过期二维码在后台一直刷接口
-  if (tab === 'netease') startQrLogin();
+  // 已登录的账号不再生成二维码，只显示账号卡片
+  if (tab === 'netease' && !providerLoggedIn('netease')) startQrLogin();
   else { clearInterval(state.qrTimer); state.qrTimer = null; }
-  if (tab === 'qishui') { checkQishuiStatus(); if (!qishuiQrTimer && !qishuiQrToken) startQishuiQr(); }
-  else cancelQishuiQr();
-  if (tab === 'qq') { checkQQStatus(); refreshQQVipStatus(); if (!qqQrTimer && !qqQrId) startQQQr(); }
-  else cancelQQQr();
+  if (tab === 'qishui') {
+    checkQishuiStatus();
+    if (!providerLoggedIn('qishui') && !qishuiQrTimer && !qishuiQrToken) startQishuiQr();
+    else cancelQishuiQr();
+  } else cancelQishuiQr();
+  if (tab === 'qq') {
+    checkQQStatus(); refreshQQVipStatus();
+    if (!providerLoggedIn('qq') && !qqQrTimer && !qqQrId) startQQQr();
+    else cancelQQQr();
+  } else cancelQQQr();
   if (tab === 'xy') checkXYStatus();
 }
 async function startQrLogin() {
@@ -1269,9 +1403,11 @@ async function startQrLogin() {
     pollQr();
   } catch (err) { $('qr-status').textContent = '⚠ ' + err.message + '（点「刷新二维码」重试）'; }
 }
-async function openLogin(lp) {
+function openLogin(lp) {
   $('login-modal').hidden = false;
   switchLoginTab(typeof lp === 'string' ? lp : 'all');
+  // 打开后再校准一次，避免缓存里的登录位图让已登录账号闪一下二维码
+  refreshAccountStatus(true).then(applyLoginPanels);
 }
 let qishuiQrToken = '', qishuiQrTimer = null, qishuiQrGen = 0, qishuiQrBusy = false;
 function stopQishuiQrPoll() {

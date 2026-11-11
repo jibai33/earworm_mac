@@ -143,6 +143,7 @@
 <link rel="preload" as="font" href="./fonts/ark-pixel-12.woff2" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./app.css">
 <link rel="stylesheet" href="./pixel.css">
+<link rel="stylesheet" href="./egg.css">
 </head>
 <body>
 <!-- ══ 开机动画：国风墨染 · 印章浮现 ══
@@ -484,17 +485,21 @@
       </div>
     </div>
 
-    <!-- 网易云：扫码 -->
+    <!-- 网易云：扫码 / 已登录则显示账号卡片 -->
     <div id="lp-netease" hidden>
-      <h2>扫码登录 · 网易云</h2>
-      <p class="login-tip">用网易云音乐 App 扫一扫</p>
-      <div class="qr-wrap"><img id="qr-img" alt="登录二维码"></div>
-      <div class="qr-actions"><button id="qr-refresh" class="brush-btn">刷新二维码</button></div>
-      <div id="qr-status" class="qr-status">正在生成二维码…</div>
+      <div class="lp-form" id="lp-netease-form">
+        <h2>扫码登录 · 网易云</h2>
+        <p class="login-tip">用网易云音乐 App 扫一扫</p>
+        <div class="qr-wrap"><img id="qr-img" alt="登录二维码"></div>
+        <div class="qr-actions"><button id="qr-refresh" class="brush-btn">刷新二维码</button></div>
+        <div id="qr-status" class="qr-status">正在生成二维码…</div>
+      </div>
+      <div class="lp-account" id="lp-netease-account" hidden></div>
     </div>
 
-    <!-- 汽水：抖音 App 扫码 -->
+    <!-- 汽水：抖音 App 扫码 / 已登录则显示账号卡片 -->
     <div id="lp-qishui" hidden>
+      <div class="lp-form" id="lp-qishui-form">
       <h2>扫码登录 · 汽水音乐</h2>
       <p class="login-tip">用 <b>抖音 App</b> 扫下面的二维码，在手机上确认后凭据自动存到本机</p>
       <div class="qr-wrap"><img id="qishui-qr-img" alt="抖音扫码二维码"></div>
@@ -509,10 +514,13 @@
         <button id="qishui-cookie-save" class="brush-btn">保存凭据</button>
       </details>
       <div id="qishui-cookie-status" class="qr-status">未查询登录态</div>
+      </div>
+      <div class="lp-account" id="lp-qishui-account" hidden></div>
     </div>
 
-    <!-- QQ 音乐：三条扫码通道 + VIP 播放授权 -->
+    <!-- QQ 音乐：三条扫码通道 + VIP 播放授权 / 已登录则显示账号卡片 -->
     <div id="lp-qq" hidden>
+      <div class="lp-form" id="lp-qq-form">
       <h2>扫码登录 · QQ 音乐</h2>
       <p class="login-tip">任选一条通道扫码；登录成功后凭据自动存到本机，并解锁 VIP / 无损曲目的播放授权</p>
       <div class="qq-channels" id="qq-channels">
@@ -534,10 +542,13 @@
         <button id="qq-cookie-save" class="brush-btn">保存凭据</button>
       </details>
       <div id="qq-cookie-status" class="qr-status">未查询登录态</div>
+      </div>
+      <div class="lp-account" id="lp-qq-account" hidden></div>
     </div>
 
-    <!-- 小宇宙：手机号 + 短信验证码 -->
+    <!-- 小宇宙：手机号 + 短信验证码 / 已登录则显示账号卡片 -->
     <div id="lp-xy" hidden>
+      <div class="lp-form" id="lp-xy-form">
       <h2>登录 · 小宇宙</h2>
       <p class="login-tip">手机号收验证码，验证通过后自动换取凭据并存到本机</p>
 
@@ -581,6 +592,8 @@
 
       <div id="xy-token-status" class="qr-status">未查询登录态</div>
       <p class="xy-note">凭据只存在本机，不会上传；过期后重新用验证码登录一次即可</p>
+      </div>
+      <div class="lp-account" id="lp-xy-account" hidden></div>
     </div>
 
     <button id="login-close" class="brush-btn">关闭</button>
@@ -615,6 +628,48 @@
   </div>
 </div>
 
+<!-- ══ 登录彩蛋：暗号门 + 8-bit 逐帧动画 ══ -->
+<div id="egg-modal" class="egg-modal" hidden aria-hidden="true" data-kind="first">
+  <div class="egg-frame" role="dialog" aria-modal="true" aria-label="登录彩蛋" tabindex="-1">
+    <div class="egg-top">
+      <span class="egg-badge" id="egg-badge">EASTER EGG 01</span>
+      <span class="egg-title" id="egg-title">初次相遇</span>
+      <span class="egg-dots">■ ■ ■</span>
+    </div>
+    <div class="egg-screen">
+      <canvas id="egg-canvas" width="192" height="108"></canvas>
+      <div class="egg-scanlines"></div>
+      <div class="egg-idle" id="egg-idle">
+        <button class="egg-eye" id="egg-eye" type="button" aria-label="看看它">◉</button>
+        <p id="egg-riddle">输入四个字，按回车</p>
+      </div>
+    </div>
+    <!-- 文案独立成一条像素对话框，不压住画布里的像素小人 -->
+    <div class="egg-scene-copy" id="egg-scene-copy">
+      <b id="egg-scene-title"></b>
+      <span id="egg-scene-line"></span>
+    </div>
+    <div class="egg-entry" id="egg-entry">
+      <p class="egg-sub" id="egg-subtitle"></p>
+      <div class="egg-cells" id="egg-cells">
+        <i></i><i></i><i></i><i></i>
+        <input id="egg-input" class="egg-input" type="text" maxlength="16" autocomplete="off" spellcheck="false" aria-label="输入暗号">
+      </div>
+      <div class="egg-status" id="egg-status">输入四个字，按回车</div>
+      <div class="egg-actions">
+        <button class="egg-btn" id="egg-hint" type="button">给点提示</button>
+        <button class="egg-btn" id="egg-skip" type="button">跳过</button>
+      </div>
+    </div>
+    <div class="egg-end" id="egg-end" hidden>
+      <div class="egg-actions">
+        <button class="egg-btn" id="egg-replay" type="button">再看一次</button>
+        <button class="egg-btn solid" id="egg-close" type="button">继续听歌 →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 角落小乐手已关闭（取消显示宠物）。
      要恢复的话，把下面两处注释去掉即可：这里的 div，以及底部的 muse.js。 -->
 <!--
@@ -624,6 +679,7 @@
 <script src="./taste.js"></script>
 <script src="./app.js"></script>
 <script src="./taste-ui.js"></script>
+<script src="./egg.js"></script>
 <!-- <script src="./muse.js"></script> -->
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
