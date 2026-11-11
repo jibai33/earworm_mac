@@ -517,10 +517,25 @@ async function loadUnifiedHome() {
   sec.hidden = false;
   try {
     const d = await api('/api/unified/home');
-    const sections = (d.sections || []).filter(s => (s.items || []).length || s.status === 'need_login' || s.status === 'error');
-    if (!sections.length) { box.innerHTML = '<div class="u-empty">各平台暂未返回内容，点「重新汇聚」再试。</div>'; return; }
+    const all = d.sections || [];
+    const filled = all.filter(s => (s.items || []).length);
+    const failed = all.filter(s => !(s.items || []).length && s.status === 'error');
+    if (!filled.length) {
+      box.innerHTML = '<div class="u-empty">各平台暂未返回内容，先连接音源或点「重新汇聚」再试。</div>';
+      return;
+    }
     box.innerHTML = '';
-    sections.forEach((s, i) => box.appendChild(unifiedSectionEl(s, i)));
+    // 两行 × 两列紧凑轨道：四平台同屏，每块只占一条横滑
+    const grid = document.createElement('div'); grid.className = 'u-grid';
+    filled.forEach((s, i) => grid.appendChild(unifiedSectionEl(s, i)));
+    box.appendChild(grid);
+    requestAnimationFrame(syncUnifiedArrows);
+    // 只有真失败才单独提示；未登录的音源由上方状态条负责，不重复占位
+    if (failed.length) {
+      const tip = document.createElement('div'); tip.className = 'u-fail';
+      tip.textContent = failed.map(s => `${s.short}：${s.message || '拉取失败'}`).join(' · ');
+      box.appendChild(tip);
+    }
   } catch (e) { box.innerHTML = `<div class="u-empty">统一汇聚暂不可用：${escapeHtml(e.message)}</div>`; }
 }
 function unifiedSectionEl(s, i) {
@@ -531,7 +546,8 @@ function unifiedSectionEl(s, i) {
   head.className = 'u-head';
   head.innerHTML = `<span class="u-badge ${escapeHtml(s.status)}">${escapeHtml(s.short)}</span>
     <div class="u-title"><b>${escapeHtml(s.title)}</b><small>${escapeHtml(s.subtitle || '')}</small></div>
-    <span class="u-count">${(s.items || []).length} 条</span>`;
+    <span class="u-count">${(s.items || []).length} 条</span>
+    <button class="u-arrow" type="button" aria-label="向右翻看">›</button>`;
   wrap.appendChild(head);
   const items = s.items || [];
   if (!items.length) {
@@ -548,6 +564,7 @@ function unifiedSectionEl(s, i) {
     return wrap;
   }
   const rail = document.createElement('div'); rail.className = 'rail u-rail';
+  rail.addEventListener('scroll', syncUnifiedArrows, { passive: true });
   const playable = items.filter(x => !(x.isPodcast || x.type === 'podcast' || x.type === 'playlist'));
   items.forEach((item, j) => {
     const el = document.createElement('div');
@@ -564,8 +581,33 @@ function unifiedSectionEl(s, i) {
     rail.appendChild(el);
   });
   wrap.appendChild(rail);
+  const arrow = head.querySelector('.u-arrow');
+  if (arrow) {
+    arrow.onclick = (e) => {
+      e.stopPropagation();
+      const max = rail.scrollWidth - rail.clientWidth;
+      if (max <= 4) return;
+      rail.scrollBy({ left: rail.scrollLeft >= max - 6 ? -max : Math.round(rail.clientWidth * 0.85), behavior: 'smooth' });
+    };
+  }
   return wrap;
 }
+
+/* 轨道溢出才显示翻页箭头；右侧还有内容时加一层渐隐，避免卡片被硬切 */
+function syncUnifiedArrows() {
+  document.querySelectorAll('#unified-home .u-sec').forEach((w) => {
+    const rail = w.querySelector('.u-rail');
+    if (!rail) return;
+    const max = rail.scrollWidth - rail.clientWidth;
+    const overflow = max > 2;
+    const atEnd = rail.scrollLeft >= max - 2;
+    w.classList.toggle('can-scroll', overflow && !atEnd);
+    w.classList.toggle('can-scroll-back', overflow && rail.scrollLeft > 2);
+    const arrow = w.querySelector('.u-arrow');
+    if (arrow) arrow.hidden = !overflow;
+  });
+}
+window.addEventListener('resize', () => syncUnifiedArrows());
 
 /* ---------- 统一曲库 ---------- */
 async function loadUnifiedLibrary() {
