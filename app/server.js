@@ -42,6 +42,10 @@ const electronRuntime = require('./modules/electron-runtime');
 const QISHUI_QR_AVAILABLE = electronRuntime.isChromiumShim ? !!electronRuntime.findChrome() : true;
 const tasteProfile = require('./modules/taste-profile.js');
 const recommender = require('./modules/recommend.js');
+const night = require('./modules/night.js');
+const crate = require('./modules/crate.js');
+const wall = require('./modules/wall.js');
+const yearbook = require('./modules/yearbook.js');
 const { createUnified } = require('./modules/unified.js');
 const { TrackDecryptor } = require('./modules/qishui-audio-decryptor/track-decryptor');
 const qishuiAudioDecryptor = new TrackDecryptor();
@@ -440,6 +444,16 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, loginEgg.check(body.phrase || q.get('phrase') || ''));
     }
     if (pn === '/api/login/egg/skip') return sendJSON(res, loginEgg.skip());
+    // 隐藏唱片店：解锁条件全部由服务端事实推导（彩蛋状态 / 事件流 / 本地计数）
+    if (pn === '/api/crate/status') {
+      const key = tasteProfile.normalizeKey(q.get('syncKey') || '');
+      const events = tasteProfile.isValidKey(key) ? tasteProfile.rawProfile(key).events : [];
+      return sendJSON(res, crate.evaluate({ events }));
+    }
+    if (pn === '/api/crate/mark') {
+      const body = await readBody(req);
+      return sendJSON(res, crate.mark(body.what));
+    }
     if (pn === '/api/login/egg/replay') {
       const body = req.method === 'POST' ? await readBody(req) : {};
       return sendJSON(res, loginEgg.replay(body.kind || q.get('kind') || 'first'));
@@ -727,6 +741,9 @@ const server = http.createServer(async (req, res) => {
         });
       }
       if (!tasteProfile.isValidKey(key)) {
+        // 首次启动时客户端可能还没有同步码：墙面与小报按「空库」回，不要甩 400
+        if (action === 'wall') return sendJSON(res, wall.buildWall({ events: [] }));
+        if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: [] }));
         return sendJSON(res, { ok: false, error: '同步码无效（应为 EW-XXXX-XXXX-XXXX）' }, 400);
       }
       const p = tasteProfile.rawProfile(key);
@@ -755,6 +772,21 @@ const server = http.createServer(async (req, res) => {
         const variant = Math.max(0, Math.min(20, Number(q.get('variant') || 0) || 0));
         return sendJSON(res, { ok: true, syncKey: tasteProfile.prettyKey(key), recommendations: await tasteRecommendations(p, variant) });
       }
+      // 深夜频道：只取慢的，与推荐池同一套曲库检索
+      if (action === 'night') {
+        return sendJSON(res, await night.buildNight({
+          events: p.events,
+          searchFn: tasteSearch,
+          isSuppressed: (song) => tasteProfile.isSuppressed(p, song),
+        }));
+      }
+      // 唯一一处刻意「反画像」：从权重最低的方向抽一首
+      if (action === 'surprise' && req.method === 'POST') {
+        return sendJSON(res, await night.surprise({ events: p.events, searchFn: tasteSearch }));
+      }
+      // 唱片墙 / 听觉年鉴：都只读本机事件流，不做任何外部请求
+      if (action === 'wall') return sendJSON(res, wall.buildWall({ events: p.events }));
+      if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: p.events }));
       if (action === 'settings' && req.method === 'POST') return sendJSON(res, tasteProfile.setSettings(key, body.settings || body));
       if (action === 'feedback' && req.method === 'POST') return sendJSON(res, tasteProfile.addFeedback(key, body));
       if (action === 'clear' && req.method === 'POST') return sendJSON(res, tasteProfile.clearProfile(key, { keepSettings: body.keepSettings !== false }));

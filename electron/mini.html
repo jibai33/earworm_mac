@@ -76,6 +76,14 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
+  /* 迷你频谱：和菜单栏同一套 8 段，暂停落成一条基线 */
+  .spec { display: flex; align-items: flex-end; gap: 2px; height: 12px; margin-top: 4px; }
+  .spec i {
+    display: block; width: 3px; height: 2px; background: var(--px-amber-dim, #8a683c);
+    transition: none;
+  }
+  body.playing .spec i { background: var(--px-amber); }
+
   /* 进度：分段色块 */
   .track { margin-top: 6px; height: 16px; display: flex; align-items: center; gap: 8px; }
   .bar {
@@ -127,6 +135,7 @@
     <div class="meta">
       <div class="title" id="title">没有正在播放的曲目</div>
       <div class="artist" id="artist">闻曲 · 听曲知雅意</div>
+      <div class="spec" id="spec" aria-hidden="true"></div>
       <div class="track">
         <span class="time" id="pos">0:00</span>
         <div class="bar" id="bar"><i id="fill"></i><b id="knob"></b></div>
@@ -231,8 +240,28 @@
 
   window.ewMini.onState(render);
   window.ewMini.onFlags((flags) => {
-    $('pin').classList.toggle('pinned', !!flags.alwaysOnTop);
+    $('pin').classList.toggle('pinned', !!flags.pinned);
+    $('pin').title = flags.pinned ? '常驻（已固定）' : '常驻';
   });
+
+  /* 迷你频谱：8 段，和菜单栏图标同源 */
+  const specEl = $('spec');
+  const specBars = [];
+  for (let i = 0; i < 8; i++) {
+    const bar = document.createElement('i');
+    specEl.appendChild(bar);
+    specBars.push(bar);
+  }
+  function renderSpectrum(bands) {
+    for (let i = 0; i < specBars.length; i++) {
+      const v = bands ? Math.max(0, Math.min(1, bands[i] || 0)) : 0;
+      // 2px 一档，保持像素颗粒而不是连续高度
+      const h = bands ? 2 + Math.round((v * 10) / 2) * 2 : 2;
+      specBars[i].style.height = h + 'px';
+    }
+  }
+  window.ewMini.onSpectrum(renderSpectrum);
+
   window.ewMini.initialState().then(render);
 </script>
 </body>

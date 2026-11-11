@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>闻曲 · 创意视觉稿 v1</title>
+<style>
+@font-face{font-family:'Ark Pixel 12';src:url('../../app/web/fonts/ark-pixel-12.woff2') format('woff2');font-display:block}
+
+:root{
+  --bg:#08090c; --p1:#0e1014; --p2:#151920; --p3:#1d232c; --line:#2b323d;
+  --txt:#eae4d6; --dim:#b0b9c2;
+  --amber:#e6b06a; --amber-hi:#f6cd93; --amber-dim:#8a683c;
+  --red:#d1483a; --green:#8fb8ae; --green-hi:#bfe0d5;
+  --blue:#5f83b0; --purple:#8b6fae;
+  --sh:3px 3px 0 #000;
+  --f:'Ark Pixel 12','PingFang SC','Hiragino Sans GB',monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--f);font-size:12px;line-height:1.9}
+body{
+  background-image:
+    linear-gradient(rgba(43,50,61,.14) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(43,50,61,.14) 1px,transparent 1px);
+  background-size:24px 24px,24px 24px;
+  padding:44px 48px 64px;
+}
+.sheet{max-width:1344px;margin:0 auto}
+
+/* ── 抬头 ───────────────────────────────── */
+.head{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:8px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{
+  width:26px;height:26px;background:var(--amber);box-shadow:var(--sh);
+  -webkit-mask:var(--pxnote) center/26px 26px no-repeat;
+  mask:var(--pxnote) center/26px 26px no-repeat;
+  --pxnote:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 11' shape-rendering='crispEdges'><path fill='black' d='M6 1h4v1H6zM8 2h2v1H8zM8 3h1v1H8zM6 1h2v9H6zM3 6h5v1H3zM2 7h6v1H2zM2 8h6v1H2zM3 9h5v1H3z'/></svg>");
+}
+.brand b{font-size:24px;font-weight:400;letter-spacing:.06em}
+.tag{
+  margin-left:6px;padding:2px 8px;border:2px solid var(--amber-dim);color:var(--amber);
+  font-size:12px;letter-spacing:.1em;
+}
+.head .lead{margin:14px 0 0;max-width:880px;color:var(--dim);line-height:2.1}
+.head .lead em{font-style:normal;color:var(--txt);border-bottom:2px solid var(--amber-dim)}
+.legend{display:flex;gap:18px;margin-top:16px;color:var(--dim);font-size:12px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;display:block;border:2px solid}
+.legend .k1 i{border-color:var(--amber);background:#e6b06a33}
+.legend .k2 i{border-color:var(--line);background:var(--p2)}
+
+/* ── 板式 ───────────────────────────────── */
+.board{
+  display:grid;grid-template-columns:250px 1fr;gap:30px;
+  padding:34px 0;border-bottom:2px dashed #232a33;
+}
+.board:last-of-type{border-bottom:0}
+.side{position:relative}
+.idx{
+  display:block;font-size:36px;line-height:1;color:var(--amber);letter-spacing:.04em;
+  text-shadow:3px 3px 0 #000;
+}
+.side h2{font-size:24px;font-weight:400;margin:12px 0 2px;letter-spacing:.04em;line-height:1.5}
+.side .sub{margin:0 0 12px;color:var(--amber-dim);letter-spacing:.16em;font-size:12px}
+.side .desc{margin:0;color:var(--dim);line-height:2.1}
+.meta{list-style:none;margin:18px 0 0;padding:14px 0 0;border-top:2px solid var(--p3)}
+.meta li{display:flex;justify-content:space-between;gap:10px;padding:3px 0}
+.meta i{font-style:normal;color:#7d8792}
+.meta b{font-weight:400;color:var(--txt)}
+.meta b.hot{color:var(--amber-hi)}
+
+.stage{
+  background:var(--p1);border:2px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.75);
+  padding:26px;position:relative;overflow:hidden;
+}
+.stage::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.16) 0 1px,transparent 1px 4px);
+}
+.cap{margin:18px 0 0;color:#7d8792;font-size:12px;line-height:1.9;position:relative;z-index:2}
+.cap b{font-weight:400;color:var(--dim)}
+
+/* ── 01 菜单栏 ───────────────────────────── */
+.menubar{
+  display:flex;align-items:center;justify-content:space-between;
+  height:30px;padding:0 10px;background:#1a1c1f;border:2px solid #000;
+  color:#d8d2c4;font-size:12px;box-shadow:inset 0 -2px 0 #000;
+}
+.mb-left,.mb-right{display:flex;align-items:center;gap:14px}
+.mb-left b{font-weight:400;color:#fff}
+.mb-left span{color:#b6b0a4}
+.mb-glyph{width:12px;height:12px;background:#c9c3b5;display:block;
+  -webkit-mask:var(--g) center/12px 12px no-repeat;mask:var(--g) center/12px 12px no-repeat}
+.tray{
+  display:flex;align-items:center;gap:6px;padding:2px 7px;background:#000000;
+  border:2px solid #3a3f46;
+}
+.bars{display:flex;align-items:flex-end;gap:2px;height:14px}
+.bars i{display:block;width:3px;background:var(--amber);height:var(--h,30%);
+  animation:eq .9s steps(4,end) infinite alternate;animation-delay:calc(var(--i) * -110ms)}
+@keyframes eq{
+  0%{height:15%}25%{height:70%}50%{height:38%}75%{height:96%}100%{height:46%}
+}
+.mb-clock{color:#fff;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+
+.desktop{
+  position:relative;border:2px solid #000;overflow:hidden;
+  background:linear-gradient(180deg,#0a1024 0%,#0b1424 52%,#080b14 100%);
+  padding-bottom:16px;
+}
+.skyline{position:absolute;left:0;right:0;bottom:0;width:100%;height:150px;display:block}
+.desktop .stars-bg{position:absolute;inset:0;
+  background-image:radial-gradient(#eae4d63d 1px,transparent 1px);background-size:53px 41px}
+.drop{
+  position:relative;margin:56px 14px 26px auto;width:342px;background:var(--p2);border:2px solid var(--line);
+  box-shadow:6px 6px 0 rgba(0,0,0,.8);padding:12px;
+}
+.drop-h{display:flex;justify-content:space-between;color:#7d8792;font-size:12px;
+  letter-spacing:.12em;margin-bottom:10px}
+.mini-row{display:flex;align-items:center;gap:10px}
+.cover{
+  width:52px;height:52px;flex:0 0 52px;border:2px solid #000;position:relative;
+  background:
+    repeating-linear-gradient(135deg,#e6b06a 0 4px,#c98f4a 4px 8px);
+  box-shadow:2px 2px 0 #000;
+}
+.cover::after{content:"";position:absolute;inset:8px;border:2px solid #2b1c0c;
+  background:repeating-linear-gradient(45deg,#2b1c0c 0 3px,#e6b06a 3px 6px)}
+.mini-meta{flex:1;min-width:0}
+.mini-meta b{display:block;font-weight:400;font-size:12px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.mini-meta span{color:var(--dim);font-size:12px}
+.mini-play{
+  width:30px;height:30px;flex:0 0 30px;border:2px solid var(--amber);background:#e6b06a1f;
+  display:grid;place-items:center;cursor:default;
+}
+.mini-play::before{content:"";border-left:8px solid var(--amber-hi);
+  border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px}
+.prog{height:6px;background:#000;border:2px solid #2b323d;margin:12px 0 0;padding:1px}
+.prog i{display:block;height:100%;background:var(--amber)}
+.mini-times{display:flex;justify-content:space-between;color:#7d8792;margin-top:5px}
+.mini-acts{display:flex;gap:8px;margin-top:8px}
+.mini-acts span{
+  flex:1;height:26px;border:2px solid var(--p3);background:#0000004d;
+  display:grid;place-items:center;color:var(--dim);
+}
+.mini-next{margin-top:10px;padding-top:9px;border-top:2px dashed #2b323d;color:#7d8792;
+  display:flex;align-items:center;gap:7px}
+.mini-next .dot{width:5px;height:5px;background:var(--green);display:block}
+
+/* ── 02 年鉴（纸） ───────────────────────── */
+.paper{
+  background:#efe6cf;color:#1c1813;padding:26px 30px 20px;width:640px;
+  border:2px solid #000;box-shadow:10px 10px 0 rgba(0,0,0,.7);
+  background-image:radial-gradient(#00000010 1px,transparent 1px);background-size:6px 6px;
+}
+.paper .masthead{display:flex;align-items:flex-end;justify-content:space-between;
+  border-bottom:4px double #1c1813;padding-bottom:6px}
+.paper .masthead b{font-size:24px;font-weight:400;letter-spacing:.14em}
+.paper .masthead span{font-size:12px;letter-spacing:.16em;color:#5c5347}
+.paper .rule{display:flex;justify-content:space-between;border-bottom:2px solid #1c1813;
+  padding:5px 0;font-size:12px;color:#5c5347;letter-spacing:.08em}
+.paper h3{
+  font-size:24px;font-weight:400;line-height:1.6;margin:16px 0 6px;letter-spacing:.02em;
+}
+.paper h3 em{font-style:normal;background:#a3352a;color:#efe6cf;padding:0 4px}
+.paper .dek{margin:0 0 14px;color:#4a4237;line-height:1.95;border-left:4px solid #a3352a;padding-left:10px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:2px solid #1c1813;padding-top:12px}
+.cols p{margin:0 0 10px;line-height:2;text-align:justify}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:2px solid #1c1813;margin:0 0 12px}
+.nums div{padding:8px 6px;text-align:center;border-right:2px solid #1c1813}
+.nums div:last-child{border-right:0}
+.nums b{display:block;font-size:24px;font-weight:400;line-height:1.3}
+.nums i{font-style:normal;font-size:12px;color:#5c5347}
+.chart{display:flex;align-items:flex-end;gap:3px;height:56px;border-bottom:2px solid #1c1813;
+  padding-bottom:2px;margin-bottom:6px}
+.chart i{flex:1;background:#1c1813;height:var(--h)}
+.chart i.hot{background:#a3352a}
+.axis{display:flex;justify-content:space-between;color:#5c5347;font-size:12px}
+.list{margin:0;padding:0;list-style:none}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;
+  border-bottom:1px dashed #b9ae97}
+.list li span:last-child{color:#5c5347;white-space:nowrap}
+.stamp{
+  margin-top:14px;display:flex;justify-content:space-between;align-items:center;
+  border-top:2px solid #1c1813;padding-top:8px;color:#5c5347;font-size:12px;letter-spacing:.1em;
+}
+.seal{
+  width:56px;height:56px;border:3px solid #a3352a;color:#a3352a;display:grid;place-items:center;
+  text-align:center;line-height:1.35;transform:rotate(-6deg);font-size:12px;padding:4px;
+}
+
+/* ── 02 侧注 ─────────────────────────────── */
+.stage.split{display:flex;gap:30px;align-items:flex-start}
+.anno{flex:1;min-width:0;border-left:2px dashed #232a33;padding-left:22px;color:var(--dim)}
+.anno h5{margin:0 0 5px;font-size:12px;font-weight:400;color:var(--amber);letter-spacing:.14em}
+.anno p{margin:0 0 16px;line-height:2}
+.anno b{font-weight:400;color:var(--txt)}
+.anno .dim{color:#7d8792}
+.rule-mini{height:2px;background:#232a33;margin:2px 0 14px}
+
+/* ── 03 唱片墙 ───────────────────────────── */
+.wall{
+  background:#0b0d11;border:2px solid #000;padding:22px;
+  background-image:
+    linear-gradient(rgba(255,255,255,.028) 2px,transparent 2px),
+    linear-gradient(90deg,rgba(255,255,255,.028) 2px,transparent 2px);
+  background-size:64px 64px,64px 64px;
+  box-shadow:inset 0 0 60px #000;
+}
+.wall-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+.wall-h b{font-size:24px;font-weight:400;letter-spacing:.04em}
+.wall-h span{color:#7d8792}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.disc{position:relative;aspect-ratio:1/1;border:2px solid #000;background:var(--p2);
+  box-shadow:2px 2px 0 #000}
+.disc::after{
+  content:"";position:absolute;left:50%;top:6px;width:4px;height:4px;margin-left:-2px;
+  background:#6a7480;box-shadow:0 6px 0 #00000066;
+}
+.disc.on{border-color:#3a4250}
+.disc.on .art{position:absolute;inset:0;image-rendering:pixelated}
+.disc.glow{outline:2px solid var(--amber);outline-offset:3px}
+.disc.glow::before{
+  content:"";position:absolute;inset:-14px;background:radial-gradient(circle,#e6b06a33,transparent 70%);
+  pointer-events:none;
+}
+.disc.empty{border:2px dashed #333a45;background:transparent;box-shadow:none}
+.disc.empty::after{background:#3a424e}
+.art-1{background:linear-gradient(180deg,#e6b06a 0 52%,#2a3b3a 52% 100%);
+  background-image:linear-gradient(180deg,#e6b06a 0 52%,#243230 52% 100%)}
+.art-2{background:repeating-radial-gradient(circle at 50% 50%,#d1483a 0 6px,#7d1f16 6px 12px)}
+.art-3{background:repeating-linear-gradient(0deg,#1b2540 0 4px,#5f83b0 4px 6px)}
+.art-4{background:repeating-linear-gradient(45deg,#8b6fae 0 5px,#241a33 5px 10px)}
+.art-5{background:linear-gradient(135deg,#8fb8ae 0 50%,#0e1014 50%)}
+.art-6{background:radial-gradient(circle at 35% 35%,#f6cd93 0 22%,#a3352a 22% 100%)}
+.art-7{background:repeating-conic-gradient(#eae4d6 0 20deg,#1d232c 20deg 40deg)}
+.art-8{background:linear-gradient(0deg,#e6b06a 0 30%,#d1483a 30% 62%,#1b2540 62%)}
+.wall-foot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;
+  border-top:2px solid #232a33;padding-top:12px;color:#7d8792}
+.wall-foot b{color:var(--amber-hi);font-weight:400}
+.hint{
+  position:absolute;right:-1px;bottom:-1px;background:var(--amber);color:#1a1206;
+  padding:2px 6px;font-size:12px;
+}
+
+/* ── 04 隐藏唱片店 ───────────────────────── */
+.crate{display:flex;gap:26px;align-items:stretch}
+.crate-main{flex:1;min-width:0}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.slot{position:relative;aspect-ratio:1/1.06;border:2px solid var(--p3);background:var(--p2);
+  padding:10px 10px 8px;box-shadow:3px 3px 0 #000}
+.slot .sleeve{position:relative;height:calc(100% - 26px);border:2px solid #000;overflow:hidden;
+  background:#0a0c10}
+.slot .disc2{
+  position:absolute;left:50%;top:7%;width:84%;aspect-ratio:1/1;transform:translateX(-50%);
+  border-radius:50%;
+  background:repeating-radial-gradient(circle at 50% 50%,#181b21 0 2px,#0c0e12 2px 4px);
+  border:2px solid #2b323d;
+}
+.slot .disc2::after{
+  content:"";position:absolute;left:50%;top:50%;width:26%;aspect-ratio:1/1;
+  transform:translate(-50%,-50%);background:var(--label,var(--amber));
+  border:2px solid #000;border-radius:50%;
+}
+.slot .sname{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:#000000cc;
+  color:var(--txt);font-size:12px;text-align:center;letter-spacing:.04em}
+.slot .tagline{display:flex;justify-content:space-between;margin-top:7px;color:#7d8792;font-size:12px}
+.slot.locked{border-style:solid;border-color:#2a313c;background:#0b0d12}
+.slot.locked .sleeve{display:grid;place-items:center;border:0;background:transparent}
+.slot.locked .sleeve::before{
+  content:"";position:absolute;left:50%;top:8%;width:80%;aspect-ratio:1/1;transform:translateX(-50%);
+  border-radius:50%;border:2px dashed #2a313c;
+}
+.lock{width:22px;height:26px;position:relative;opacity:.75;z-index:2}
+.lock::before{content:"";position:absolute;left:3px;top:0;width:16px;height:14px;
+  border:3px solid #4a5462;border-bottom:0}
+.lock::after{content:"";position:absolute;left:0;bottom:0;width:22px;height:15px;background:#4a5462}
+.q{font-size:24px;color:#3a424e;letter-spacing:.2em}
+.progress{margin-top:20px;border-top:2px solid var(--p3);padding-top:14px;
+  display:flex;align-items:center;gap:14px}
+.pbar{flex:1;height:12px;border:2px solid var(--p3);background:#000;padding:2px;display:flex;gap:2px}
+.pbar i{flex:1;background:#232a33}
+.pbar i.on{background:var(--amber)}
+.progress b{font-weight:400;color:var(--amber-hi)}
+.side-note{width:196px;border-left:2px dashed #232a33;padding-left:20px;color:var(--dim);
+  display:flex;flex-direction:column;gap:10px}
+.side-note h4{margin:0;font-size:12px;font-weight:400;color:var(--amber);letter-spacing:.12em}
+.side-note p{margin:0;line-height:1.95}
+.side-note .line{display:flex;align-items:center;gap:7px;color:#7d8792}
+.side-note .line i{width:6px;height:6px;background:var(--green);display:block}
+.drop-hint{
+  margin-top:auto;border:2px dashed #2a313c;padding:10px 12px;background:#0b0d12;
+}
+.drop-hint span{display:block;color:#7d8792;letter-spacing:.1em;margin-bottom:4px}
+.drop-hint b{font-weight:400;color:var(--amber-hi);line-height:1.8}
+
+/* ── 05 深夜频道 ─────────────────────────── */
+.night{
+  position:relative;aspect-ratio:16/8;background:#070b16;border:2px solid #000;overflow:hidden;
+  background-image:radial-gradient(ellipse at 50% 120%,#132043 0%,#070b16 62%);
+}
+.night .stars{position:absolute;inset:0;
+  background-image:radial-gradient(#eae4d622 1px,transparent 1px);background-size:37px 29px}
+.night .grain{position:absolute;inset:0;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.22) 0 2px,transparent 2px 5px)}
+.night .inner{position:relative;z-index:2;height:100%;padding:26px 30px;display:flex;
+  flex-direction:column;justify-content:space-between}
+.night .top{display:flex;justify-content:space-between;color:#6d7f9e;letter-spacing:.14em}
+.night .mid{display:flex;align-items:center;gap:28px}
+.moon{width:128px;height:128px;flex:0 0 128px;position:relative;
+  filter:drop-shadow(0 0 24px rgba(246,205,147,.18))}
+.moon svg{width:100%;height:100%;display:block;image-rendering:pixelated}
+.night-sky{position:absolute;left:0;right:0;bottom:0;width:100%;height:46%;display:block;opacity:.9}
+.night .lyric{margin:16px 0 0;padding-left:12px;border-left:2px solid #2e4368;
+  color:#93a6c4;letter-spacing:.06em}
+.night h3{margin:0;font-size:36px;font-weight:400;letter-spacing:.18em;color:#cdd9ef;
+  line-height:1.5;text-shadow:3px 3px 0 #000}
+.night .mid p{margin:6px 0 0;color:#93a6c4;letter-spacing:.08em}
+.night .bot{display:flex;align-items:center;justify-content:space-between}
+.btn-odd{
+  display:inline-flex;align-items:center;gap:10px;padding:9px 16px;
+  border:2px solid #4a5f85;background:#101a2e;color:#cdd9ef;
+  box-shadow:3px 3px 0 #000;letter-spacing:.08em;
+}
+.btn-odd::before{content:"";width:8px;height:8px;background:#8fb8ae;display:block}
+.night .bot span{color:#5b6d8c}
+
+/* ── 页脚 ───────────────────────────────── */
+.foot{margin-top:36px;padding-top:20px;border-top:2px solid var(--line);
+  display:flex;gap:36px;color:#7d8792}
+.foot div{flex:1}
+.foot b{display:block;color:var(--amber);letter-spacing:.1em;font-weight:400;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="head">
+    <div class="brand">
+      <span class="logo"></span>
+      <b>闻曲 EARWORM</b>
+      <span class="tag">创意视觉稿 · V1</span>
+    </div>
+    <p class="lead">五套方向，按 <em>日常感知度 ÷ 实现成本</em> 排序。视觉沿用现有的 Ark Pixel 12 与像素色板：零圆角、2px 边框、硬投影、只用 12/24/36 三级字号。每张稿子旁边标了实现成本与它依赖的现有能力。</p>
+    <div class="legend">
+      <span class="k1"><i></i>可直接做（已有数据/架构）</span>
+      <span class="k2"><i></i>需要新增设计系统组件</span>
+    </div>
+  </header>
+
+  <!-- 01 ─────────────────────────────────── -->
+  <section class="board">
+    <div class="side">
+      <span class="idx">01</span>
+      <h2>菜单栏频谱</h2>
+      <p class="sub">PIXEL TUNER</p>
+      <p class="desc">现在关掉窗口，闻曲就彻底消失了。这一层让它「一直在」：菜单栏里一个 14px 高的像素频谱跟着节拍跳，点开就是迷你播放器。</p>
+      <ul class="meta">
+        <li><i>成本</i><b class="hot">低 · 1–2 天</b></li>
+        <li><i>依赖</i><b>Electron Tray + analyser</b></li>
+        <li><i>感知</i><b>每天 · 最高</b></li>
+      </ul>
+    </div>
+    <div class="stage">
+      <div class="desktop">
+        <span class="stars-bg"></span>
+        <svg class="skyline" id="sky-1" preserveAspectRatio="none"></svg>
+      <div class="menubar">
+        <div class="mb-left"><b>Finder</b><span>文件</span><span>编辑</span><span>显示</span><span>前往</span></div>
+        <div class="mb-right">
+          <span class="mb-glyph" style="--g:url(&quot;data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='black' d='M1 8h3v3H1zM5 5h3v6H5zM9 2h3v9H9z'/></svg>&quot;)"></span>
+          <div class="tray" title="闻曲">
+            <div class="bars">
+              <i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i>
+              <i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i>
+            </div>
+          </div>
+          <span class="mb-clock">17:15</span>
+        </div>
+      </div>
+
+      <div class="drop">
+        <div class="drop-h"><span>NOW PLAYING</span><span>320k</span></div>
+        <div class="mini-row">
+          <div class="cover"></div>
+          <div class="mini-meta">
+            <b>恋愛サーキュレーション</b>
+            <span>花澤香菜 · 恋愛循環</span>
+          </div>
+          <button class="mini-play" aria-label="播放"></button>
+        </div>
+        <div class="prog"><i style="width:38%"></i></div>
+        <div class="mini-times"><span>1:24</span><span>3:41</span></div>
+        <div class="mini-acts"><span>⏮</span><span>⏭</span><span>♡</span><span>▤</span></div>
+        <div class="mini-next"><span class="dot"></span>下一首 · 可惜不是你</div>
+      </div>
+      </div>
+      <p class="cap"><b>两个细节：</b>频谱在暂停时停成一条 2px 基线，不装「还在动」；点开面板时菜单栏图标换成暂停键，避免误判状态。</p>
+    </div>
+  </section>
+
+  <!-- 02 ─────────────────────────────────── -->
+  <section class="board">
+    <div class="side">
+      <span class="idx">02</span>
+      <h2>听觉年鉴</h2>
+      <p class="sub">PIXEL GAZETTE</p>
+      <p class="desc">用已有的事件流（播放 / 完播 / 跳过 / 搜索 / 红心）出一份像素小报。不统计「听过多少首」，只讲那几个具体的时刻。</p>
+      <ul class="meta">
+        <li><i>成本</i><b>中 · 3–4 天</b></li>
+        <li><i>依赖</i><b>taste-profile 事件流</b></li>
+        <li><i>价值</i><b class="hot">可导出分享</b></li>
+      </ul>
+    </div>
+    <div class="stage split">
+      <div class="paper">
+        <div class="masthead">
+          <b>闻 曲 小 报</b>
+          <span>十一月号 · 第 11 期</span>
+        </div>
+        <div class="rule"><span>听 觉 年 鉴</span><span>2026.11.01 — 11.30</span><span>本机生成</span></div>
+
+        <h3>凌晨两点，你把同一首歌<br>听了 <em>37</em> 遍</h3>
+        <p class="dek">《夜空中最亮的星》——11 月 3 日 02:14 到 04:52，中间只停顿过一次，四分钟。</p>
+
+        <div class="nums">
+          <div><b>1,284</b><i>分钟</i></div>
+          <div><b>217</b><i>首</i></div>
+          <div><b>61%</b><i>完播率</i></div>
+        </div>
+
+        <div class="cols">
+          <div>
+            <div class="chart">
+              <i style="--h:12%"></i><i style="--h:6%"></i><i style="--h:3%"></i><i style="--h:2%"></i>
+              <i style="--h:4%"></i><i style="--h:18%"></i><i style="--h:34%"></i><i style="--h:52%"></i>
+              <i style="--h:44%"></i><i style="--h:38%"></i><i style="--h:30%"></i><i style="--h:26%"></i>
+              <i style="--h:35%"></i><i style="--h:48%"></i><i class="hot" style="--h:96%"></i><i style="--h:72%"></i>
+              <i style="--h:58%"></i><i style="--h:50%"></i><i style="--h:74%"></i><i class="hot" style="--h:88%"></i>
+              <i style="--h:66%"></i><i style="--h:40%"></i><i style="--h:22%"></i><i style="--h:14%"></i>
+            </div>
+            <div class="axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+            <p style="margin-top:10px">你的一天有两个高点：<b>15 点</b>和 <b>20 点</b>。前者是工作，后者才是你自己。</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px;color:#5c5347;letter-spacing:.1em">最 常 跳 过</p>
+            <ul class="list">
+              <li><span>晴天</span><span>连跳 9 次</span></li>
+              <li><span>孤勇者</span><span>连跳 7 次</span></li>
+              <li><span>Lo-fi 白噪音</span><span>连跳 6 次</span></li>
+            </ul>
+            <p style="margin:12px 0 0;color:#5c5347;letter-spacing:.1em">第 一 次 点 红 心</p>
+            <ul class="list">
+              <li><span>11.03 · 02:31</span><span>夜空中最亮的星</span></li>
+            </ul>
+            <p style="margin:12px 0 0">十一月你换了 <b>3</b> 种情绪：<br>前半月是<b>旧歌</b>，后半月全是<b>没听过的</b>。</p>
+          </div>
+        </div>
+
+        <div class="stamp">
+          <span>EARWORM PRESS · 本机生成 · 不出网</span>
+          <span class="seal">十一月<br>存档</span>
+        </div>
+      </div>
+      <aside class="anno">
+        <h5>版 面 规 则</h5>
+        <p>标题必须是<b>一件具体的事</b>，不是「你的年度关键词」。数字只出现在能撑住故事的地方。</p>
+        <h5>可 信 度</h5>
+        <p>「连跳 9 次」这类结论下面挂一行小字：<b>依据 30 天内 41 次播放记录</b>。数据透明才有意思。</p>
+        <h5>导 出</h5>
+        <p>长按报纸「撕下来」存 PNG，带 8-bit 撕纸声。默认不带任何账号信息。</p>
+        <div class="rule-mini"></div>
+        <p class="dim">月度小报 11 月底自动生成；年度版把 12 张拼成一整版。</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 03 ─────────────────────────────────── -->
+  <section class="board">
+    <div class="side">
+      <span class="idx">03</span>
+      <h2>像素唱片墙</h2>
+      <p class="sub">THE WALL</p>
+      <p class="desc">听过的专辑按「钉在墙上」排，新听的点亮一层暖光。空位是钉子，不是占位符——让人有想填满的冲动。</p>
+      <ul class="meta">
+        <li><i>成本</i><b>中 · 3 天</b></li>
+        <li><i>依赖</i><b>历史 + 封面</b></li>
+        <li><i>价值</i><b class="hot">视觉回报最高</b></li>
+      </ul>
+    </div>
+    <div class="stage">
+      <div class="wall">
+        <div class="wall-h"><b>我的墙</b><span>18 / 24 张 · 本月新增 3 张</span></div>
+        <div class="grid">
+          <div class="disc on"><div class="art art-1"></div></div>
+          <div class="disc on"><div class="art art-2"></div></div>
+          <div class="disc on glow"><div class="art art-3"></div><span class="hint">新</span></div>
+          <div class="disc empty"></div>
+          <div class="disc on"><div class="art art-4"></div></div>
+          <div class="disc on"><div class="art art-5"></div></div>
+          <div class="disc on"><div class="art art-6"></div></div>
+          <div class="disc empty"></div>
+          <div class="disc on"><div class="art art-7"></div></div>
+          <div class="disc empty"></div>
+          <div class="disc on"><div class="art art-8"></div></div>
+          <div class="disc on"><div class="art art-2"></div></div>
+        </div>
+        <div class="wall-foot"><span>悬停看曲目 · 点击直接播</span><span>满 24 张解锁 <b>第二面墙</b></span></div>
+      </div>
+      <p class="cap"><b>空位为什么是钉子：</b>列表页永远「还有更多」，墙面只有「还没挂上」。稀缺感是这块的关键。</p>
+    </div>
+  </section>
+
+  <!-- 04 ─────────────────────────────────── -->
+  <section class="board">
+    <div class="side">
+      <span class="idx">04</span>
+      <h2>隐藏唱片店</h2>
+      <p class="sub">CRATE DIGGING</p>
+      <p class="desc">彩蛋现在看完就没。改成收集制：每次暗号解锁一张「隐藏唱片」——8-bit 混音、主题歌单、像素封面，攒成抽屉。</p>
+      <ul class="meta">
+        <li><i>成本</i><b>低 · 2 天</b></li>
+        <li><i>依赖</i><b>现有 login-egg</b></li>
+        <li><i>价值</i><b class="hot">一次性 → 可回访</b></li>
+      </ul>
+    </div>
+    <div class="stage">
+      <div class="crate">
+        <div class="crate-main">
+          <div class="slots">
+            <div class="slot">
+              <div class="sleeve">
+                <div class="disc2" style="--label:#e6b06a"></div>
+                <div class="sname">初 次 相 遇</div>
+              </div>
+              <div class="tagline"><span>SIDE A</span><span>8-bit</span></div>
+            </div>
+            <div class="slot">
+              <div class="sleeve">
+                <div class="disc2" style="--label:#8fb8ae"></div>
+                <div class="sname">久 别 重 逢</div>
+              </div>
+              <div class="tagline"><span>SIDE B</span><span>8-bit</span></div>
+            </div>
+            <div class="slot">
+              <div class="sleeve">
+                <div class="disc2" style="--label:#d1483a"></div>
+                <div class="sname">雨 夜 电 台</div>
+              </div>
+              <div class="tagline"><span>SIDE C</span><span>歌单</span></div>
+            </div>
+            <div class="slot locked">
+              <div class="sleeve"><span class="lock"></span></div>
+              <div class="tagline"><span>暗号未解</span><span>#04</span></div>
+            </div>
+            <div class="slot locked">
+              <div class="sleeve"><span class="q">? ? ?</span></div>
+              <div class="tagline"><span>提示：四个字</span><span>#05</span></div>
+            </div>
+            <div class="slot locked">
+              <div class="sleeve"><span class="lock"></span></div>
+              <div class="tagline"><span>需集齐 3 张</span><span>#06</span></div>
+            </div>
+            <div class="slot locked">
+              <div class="sleeve"><span class="q">? ? ?</span></div>
+              <div class="tagline"><span>锁定</span><span>#07</span></div>
+            </div>
+            <div class="slot locked">
+              <div class="sleeve"><span class="lock"></span></div>
+              <div class="tagline"><span>锁定</span><span>#08</span></div>
+            </div>
+          </div>
+          <div class="progress">
+            <span>3 / 8</span>
+            <div class="pbar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+            <b>再解 1 张解锁「黑胶 B 面」</b>
+          </div>
+        </div>
+        <div class="side-note">
+          <h4>收 藏 记 录</h4>
+          <p class="line"><i></i>11.07 · 初次相遇</p>
+          <p class="line"><i></i>11.09 · 久别重逢</p>
+          <p class="line"><i></i>11.11 · 雨夜电台</p>
+          <h4 style="margin-top:6px">暗 号 来 源</h4>
+          <p>登录彩蛋、深夜频道、唱片墙满 24 张各掉一张，不重复。</p>
+          <div class="drop-hint">
+            <span>下 一 张 线 索</span>
+            <b>凌晨 3 点，打开深夜频道</b>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>关键：</b>每张唱片真的能播（30 秒自制 8-bit 片段），不是纯装饰——否则收集感会掉成成就系统。</p>
+    </div>
+  </section>
+
+  <!-- 05 ─────────────────────────────────── -->
+  <section class="board">
+    <div class="side">
+      <span class="idx">05</span>
+      <h2>深夜频道</h2>
+      <p class="sub">MIDNIGHT</p>
+      <p class="desc">0–5 点自动进入单色深蓝，只推慢歌与纯音乐，亮度降一档。附一个故意违背画像的按钮。</p>
+      <ul class="meta">
+        <li><i>成本</i><b>中 · 2–3 天</b></li>
+        <li><i>依赖</i><b>推荐权重 + 时段</b></li>
+        <li><i>价值</i><b class="hot">差异化最强</b></li>
+      </ul>
+    </div>
+    <div class="stage">
+      <div class="night">
+        <div class="stars"></div>
+        <svg class="night-sky" id="sky-2" preserveAspectRatio="none"></svg>
+        <div class="inner">
+          <div class="top"><span>MIDNIGHT CHANNEL</span><span>02:41 · 已连播 11 首</span></div>
+          <div class="mid">
+            <div class="moon">
+              <svg viewBox="0 0 32 32" shape-rendering="crispEdges">
+                <path fill="#f6cd93" d="M14 0h4v1H14zM10 1h12v1H10zM8 2h16v1H8zM7 3h18v1H7zM5 4h22v1H5zM4 5h24v1H4zM4 6h24v1H4zM3 7h26v1H3zM2 8h28v1H2zM2 9h28v1H2zM1 10h30v1H1zM1 11h30v1H1zM1 12h30v1H1zM1 13h30v1H1zM0 14h32v1H0zM0 15h32v1H0zM0 16h32v1H0zM0 17h32v1H0zM1 18h30v1H1zM1 19h30v1H1zM1 20h30v1H1zM1 21h30v1H1zM2 22h28v1H2zM2 23h28v1H2zM3 24h26v1H3zM4 25h24v1H4zM4 26h24v1H4zM5 27h22v1H5zM7 28h18v1H7zM8 29h16v1H8zM10 30h12v1H10zM14 31h4v1H14z"/>
+                <path fill="#dcb079" d="M9 7h3v1H9zM8 8h5v1H8zM8 9h5v1H8zM8 10h5v1H8zM9 11h3v1H9zM20 11h1v1H20zM19 12h3v1H19zM18 13h5v1H18zM19 14h3v1H19zM20 15h1v1H20zM13 18h1v1H13zM12 19h3v1H12zM11 20h5v1H11zM12 21h3v1H12zM13 22h1v1H13z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>现在只放慢的</h3>
+              <p>这个点你也醒着 —— 不推热歌，不猜心情。</p>
+              <p class="lyric">「晚安，是留给还醒着的人的暗号」</p>
+            </div>
+          </div>
+          <div class="bot">
+            <span class="btn-odd">给我一首意外的</span>
+            <span>绕过听感画像 · 一次</span>
+          </div>
+        </div>
+        <div class="grain"></div>
+      </div>
+      <p class="cap"><b>「意外的」怎么选：</b>从画像里权重最低的流派抽一首、且近 90 天没播过——是真正的反算法，不是随机打乱队列。</p>
+    </div>
+  </section>
+
+  <div class="foot">
+    <div><b>先做 01</b>成本最低、每天都能感知，一两天能进本机应用。</div>
+    <div><b>02 是主菜</b>数据已经在本地，只差版式；旧报纸气质别人抄不走。</div>
+    <div><b>03 + 04 一起发</b>都属「收藏」主题，共用一套墙面 / 抽屉视觉。</div>
+  </div>
+
+</div>
+<script>
+(function () {
+  function build(el, opt) {
+    if (!el) return;
+    var W = el.clientWidth || 1000, H = el.clientHeight || 150;
+    el.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var s = opt.seed;
+    function rnd() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
+    var out = '', x = -30;
+    while (x < W + 30) {
+      var bw = 26 + Math.floor(rnd() * 58);
+      var bh = Math.round(H * (0.26 + rnd() * 0.7));
+      out += '<rect x="' + x + '" y="' + (H - bh) + '" width="' + bw + '" height="' + bh + '" fill="' + opt.fill + '"/>';
+      if (rnd() > 0.6) {
+        out += '<rect x="' + (x + Math.floor(bw / 2) - 1) + '" y="' + (H - bh - 12) + '" width="3" height="12" fill="' + opt.fill + '"/>';
+      }
+      for (var wy = H - bh + 9; wy < H - 8; wy += 11) {
+        for (var wx = x + 6; wx < x + bw - 8; wx += 9) {
+          if (rnd() > 0.74) {
+            out += '<rect x="' + wx + '" y="' + wy + '" width="4" height="5" fill="' + (rnd() > 0.6 ? opt.lit : opt.win) + '"/>';
+          }
+        }
+      }
+      x += bw + 4 + Math.floor(rnd() * 12);
+    }
+    el.innerHTML = out;
+  }
+  function boot() {
+    build(document.getElementById('sky-1'), { seed: 17, fill: '#0c1322', win: '#1a2336', lit: '#e6b06a' });
+    build(document.getElementById('sky-2'), { seed: 91, fill: '#0a1424', win: '#16233a', lit: '#5f83b0' });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
+})();
+</script>
+</body>
+</html>

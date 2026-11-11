@@ -213,6 +213,21 @@ window.addEventListener('DOMContentLoaded', () => {
 
   setupMediaSession();
 
+  // 菜单栏频谱：app.js 每帧写 window.__ewSpectrum（8 段），这里降频到 ~14fps 再上报，
+  // 并按量化后的形状去重，静止画面不产生 IPC。
+  let lastBands = '';
+  setInterval(() => {
+    const raw = window.__ewSpectrum;
+    if (!Array.isArray(raw)) {
+      if (lastBands !== 'pause') { lastBands = 'pause'; ipcRenderer.send('ew:spectrum', null); }
+      return;
+    }
+    const key = raw.map((v) => Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 16)).join(',');
+    if (key === lastBands) return;
+    lastBands = key;
+    ipcRenderer.send('ew:spectrum', raw);
+  }, 70);
+
   // 进度不需要每次都过 MutationObserver，稳定 1s 一次
   setInterval(() => pushState(true), 1000);
   pushState(true);

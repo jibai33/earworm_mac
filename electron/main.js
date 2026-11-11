@@ -19,6 +19,7 @@ const http = require('http');
 const APP_DIR = path.join(__dirname, '..', 'app');
 const IS_DEV = !!process.env.EARWORM_DEV;
 const APP_NAME = '闻曲';
+const { renderTrayBitmap } = require('./tray-icon');
 
 // 开发调试：EARWORM_REMOTE_DEBUG=9222 npx electron . 即可用 DevTools 协议连入
 if (process.env.EARWORM_REMOTE_DEBUG) {
@@ -38,10 +39,15 @@ const STATE_FILE = path.join(app.getPath('userData'), 'window-state.json');
 let mainWindow = null;
 let miniWindow = null;
 let tray = null;
+let trayMenu = null;
 let serverPort = 0;
 let quitting = false;
 let miniAlwaysOnTop = true;
 let miniBoundsTimer = null;
+let miniPopover = false;   // 从菜单栏点开：失焦自动收起
+let miniPinned = false;    // 常驻：失焦也不收起
+let miniOpenedAt = 0;
+let trayBandsKey = '';
 
 const playState = {
   playing: false,
@@ -226,13 +232,25 @@ function showMain() {
 
 const MINI_SIZE = { width: 520, height: 132 };
 
+function miniAlive() { return !!(miniWindow && !miniWindow.isDestroyed()); }
+
 function miniStateFile() {
   return path.join(app.getPath('userData'), 'mini-state.json');
 }
 
-function createMiniWindow() {
-  if (miniWindow && !miniWindow.isDestroyed()) { miniWindow.show(); miniWindow.focus(); return; }
+/** 把弹层摆在菜单栏图标正下方，并夹在屏幕可用区域内 */
+function positionMiniUnderTray() {
+  if (!miniAlive() || !tray) return;
+  const tb = tray.getBounds();
+  const area = screen.getDisplayNearestPoint({ x: tb.x, y: tb.y }).workArea;
+  const { width, height } = miniWindow.getBounds();
+  let x = Math.round(tb.x + tb.width / 2 - width / 2);
+  x = Math.max(area.x + 8, Math.min(area.x + area.width - width - 8, x));
+  const y = Math.round(Math.min(area.y + area.height - height - 8, tb.y + tb.height + 6));
+  miniWindow.setPosition(x, y);
+}
 
+function createMiniWindow(popover) {
   const saved = readJSON(miniStateFile(), null);
   const area = screen.getPrimaryDisplay().workArea;
   const x = saved && Number.isFinite(saved.x) ? saved.x : Math.round(area.x + area.width - MINI_SIZE.width - 28);
@@ -262,6 +280,7 @@ function createMiniWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   });
 
@@ -270,9 +289,18 @@ function createMiniWindow() {
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   miniWindow.once('ready-to-show', () => {
+    if (popover) positionMiniUnderTray();
     miniWindow.show();
+    miniOpenedAt = Date.now();
     miniWindow.webContents.send('mini:state', playState);
     syncMiniWindowMenu();
+  });
+
+  // 弹层行为：点别处就收起（拖动窗口的 300ms 内不判定，避免刚打开就被 blur 掉）
+  miniWindow.on('blur', () => {
+    if (!miniPopover || miniPinned) return;
+    if (Date.now() - miniOpenedAt < 300) return;
+    miniWindow.hide();
   });
 
   miniWindow.on('moved', () => {
@@ -284,20 +312,41 @@ function createMiniWindow() {
 
   miniWindow.on('closed', () => {
     miniWindow = null;
+    miniPopover = false;
     if (tray) rebuildTrayMenu();
   });
 }
 
-function toggleMini() {
-  if (miniWindow && !miniWindow.isDestroyed()) miniWindow.close();
-  else createMiniWindow();
+function showMini(opts) {
+  const popover = !(opts && opts.popover === false);
+  if (miniAlive()) {
+    miniPopover = popover;
+    if (popover) positionMiniUnderTray();
+    miniWindow.show();
+    miniWindow.focus();
+    miniOpenedAt = Date.now();
+    return;
+  }
+  miniPopover = popover;
+  createMiniWindow(popover);
+}
+
+function hideMini() {
+  if (miniAlive()) miniWindow.hide();
+}
+
+function toggleMini(fromTray) {
+  const open = miniAlive() && miniWindow.isVisible();
+  if (open) hideMini();
+  else showMini({ popover: !!fromTray });
   if (tray) rebuildTrayMenu();
 }
 
 function syncMiniWindowMenu() {
-  if (!miniWindow || miniWindow.isDestroyed()) return;
-  miniWindow.webContents.send('mini:flags', { alwaysOnTop: miniAlwaysOnTop });
+  if (!miniAlive()) return;
+  miniWindow.webContents.send('mini:flags', { alwaysOnTop: miniAlwaysOnTop, pinned: miniPinned });
 }
+
 
 /* ==================================================================
    状态广播
@@ -336,6 +385,25 @@ function trayIcon() {
   return null;
 }
 
+/**
+ * 菜单栏频谱：把渲染层送来的 8 段音量画成模板图。
+ * 按量化后的形状做去重，静止时不做任何 setImage，避免菜单栏每帧重绘。
+ */
+function applyTrayBands(bands) {
+  if (!tray) return;
+  const key = bands
+    ? bands.map((v) => Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 8)).join('')
+    : 'pause';
+  if (key === trayBandsKey) return;
+  trayBandsKey = key;
+  try {
+    const { buffer, width, height } = renderTrayBitmap(bands);
+    const img = nativeImage.createFromBitmap(buffer, { width, height, scaleFactor: 2 });
+    img.setTemplateImage(true);
+    tray.setImage(img);
+  } catch { /* 生成失败就保持上一个图标，不影响播放 */ }
+}
+
 function rebuildTrayMenu() {
   if (!tray) return;
   const playingLabel = playState.name ? `${playState.name}${playState.artist ? ' · ' + playState.artist : ''}` : '未在播放';
@@ -347,12 +415,12 @@ function rebuildTrayMenu() {
     { label: '下一首', click: () => sendCommand('next') },
     { type: 'separator' },
     { label: '显示闻曲', click: showMain },
-    { label: miniWindow && !miniWindow.isDestroyed() ? '关闭迷你播放器' : '迷你播放器', click: toggleMini },
+    { label: '迷你播放器', click: () => showMini({ popover: false }) },
     { type: 'separator' },
     { label: '退出闻曲', click: () => { quitting = true; app.quit(); } },
   ];
+  trayMenu = Menu.buildFromTemplate(template);
   tray.setToolTip(playState.name ? `闻曲 · ${playingLabel}` : '闻曲 Earworm');
-  tray.setContextMenu(Menu.buildFromTemplate(template));
 }
 
 function createTray() {
@@ -360,11 +428,13 @@ function createTray() {
   if (!img) return; // 没有图标就不做托盘，不影响主功能
   tray = new Tray(img);
   tray.setIgnoreDoubleClickEvents(true);
-  tray.on('click', () => {
-    if (process.platform === 'darwin' && tray) tray.popUpContextMenu();
-  });
+  // 左键：展开面板；右键：菜单。注意不要 setContextMenu，否则 macOS 会把左键也吃掉
+  tray.on('click', () => toggleMini(true));
+  tray.on('right-click', () => { if (trayMenu) tray.popUpContextMenu(trayMenu); });
+  applyTrayBands(null);
   rebuildTrayMenu();
 }
+
 
 function createDockMenu() {
   if (!app.dock) return;
@@ -388,15 +458,25 @@ function registerIpc() {
 
   ipcMain.on('ew:mini-action', (_e, action) => {
     if (action === 'close') { if (miniWindow) miniWindow.close(); rebuildTrayMenu(); return; }
+    if (action === 'hide') { hideMini(); rebuildTrayMenu(); return; }
     if (action === 'open-main') { showMain(); return; }
     if (action === 'pin') {
-      miniAlwaysOnTop = !miniAlwaysOnTop;
-      if (miniWindow) miniWindow.setAlwaysOnTop(miniAlwaysOnTop, 'floating');
+      // 常驻：失焦不再收起，方便边干别的边看播放条
+      miniPinned = !miniPinned;
+      if (miniPinned) miniPopover = false;
       syncMiniWindowMenu();
       return;
     }
     sendCommand(action);
   });
+
+  // 菜单栏频谱：渲染层每 ~70ms 上报一次 8 段音量，null 表示未播放
+  ipcMain.on('ew:spectrum', (_e, bands) => {
+    const list = Array.isArray(bands) && bands.length ? bands.slice(0, 8) : null;
+    applyTrayBands(list);
+    if (miniAlive()) miniWindow.webContents.send('mini:spectrum', list);
+  });
+
 
   ipcMain.on('ew:mini-seek', (_e, ratio) => sendCommand('seek-ratio', ratio));
   ipcMain.handle('ew:mini-state', () => playState);

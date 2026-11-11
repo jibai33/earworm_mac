@@ -80,12 +80,31 @@ function setApiBase() {
   if (v !== null) { localStorage.setItem('ew_api', v.trim()); location.reload(); }
 }
 
+/* ---------- 对外小接口：给 night.js / crate.js 这类同页模块用 ----------
+   它们是同一文档里的普通脚本，直接读不到闭包里的 state，所以在这里开口子。
+   只暴露「放一组歌」和「跳页」，不暴露内部状态，避免别处偷偷改队列。 */
+window.EW = {
+  play(songs, index) {
+    const list = (songs || []).filter(Boolean);
+    if (!list.length) return;
+    state.queue = list.slice();
+    renderQueue();
+    playIndex(Math.max(0, Math.min(list.length - 1, index || 0)));
+  },
+  go: (page) => go(page),
+  api: (path, opts) => api(path, opts),
+  coverUrl: (u) => coverUrl(u),
+  current: () => state.queue[state.index] || null,
+  // 让唱片店的 8-bit 合成也走同一个 analyser：菜单栏频谱才不会是死的
+  audio: () => { ensureAudioGraph(); return audioCtx ? { ctx: audioCtx, analyser } : null; },
+};
+
 /* ---------- 页面切换（桌面顶栏 + 移动 tabbar） ---------- */
 function go(page) {
   document.querySelectorAll('#tabbar .tab').forEach(x => x.classList.toggle('cur', x.dataset.page === page));
-  $('page-discover').hidden = page !== 'page-discover';
-  $('page-mine').hidden = page !== 'page-mine';
+  document.querySelectorAll('.page').forEach(el => { el.hidden = el.id !== page; });
   if (page === 'page-search') openSearchDrop(); else closeSearchDrop();
+  document.dispatchEvent(new CustomEvent('ew:page', { detail: page }));
 }
 document.querySelectorAll('#tabbar .tab').forEach(t => t.addEventListener('click', () => go(t.dataset.page)));
 $('nav-home').addEventListener('click', () => go('page-discover'));
@@ -295,6 +314,9 @@ function ensureAudioGraph() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
     analyser.smoothingTimeConstant = .8;
+    // 默认的 -100/-30 dB 太窄：流行歌一放就全线顶到 255，频谱变成一堵墙
+    analyser.minDecibels = -82;
+    analyser.maxDecibels = -12;
     freqData = new Uint8Array(analyser.frequencyBinCount);
     src.connect(analyser);
     analyser.connect(audioCtx.destination);
@@ -303,11 +325,33 @@ function ensureAudioGraph() {
 const spCanvas = $('spectrum');
 const spCtx = spCanvas.getContext('2d');
 let lowAvg = 0;
+/* 菜单栏频谱：48 根柱子压成 8 段交给桌面端（浏览器里没人读，赋值开销可忽略）
+   分频用对数边界：线性切分时能量全挤在低频，菜单栏上只会看到左边两根在跳 */
+const MENU_BANDS = 8;
+const BAND_EDGES = [1, 2, 4, 7, 12, 20, 34, 56, 96];
+const BAND_GAIN = [1, 1.05, 1.15, 1.25, 1.35, 1.45, 1.6, 2];
+const menuBands = new Float32Array(MENU_BANDS);
+function publishMenuBands(on) {
+  window.__ewSpectrum = on ? Array.from(menuBands) : null;
+}
+function readMenuBands() {
+  for (let b = 0; b < MENU_BANDS; b++) {
+    const from = BAND_EDGES[b], to = Math.min(freqData.length, BAND_EDGES[b + 1]);
+    let acc = 0, n = 0;
+    for (let k = from; k < to; k++) { acc += freqData[k]; n++; }
+    const avg = n ? acc / n / 255 : 0;
+    // 高频天然更弱，按段补一点增益，整条才像在跳而不是只有左半边
+    const v = Math.min(1, avg * BAND_GAIN[b]);
+    menuBands[b] = menuBands[b] * .5 + v * .5;
+  }
+}
 function drawSpectrum() {
   requestAnimationFrame(drawSpectrum);
   if (!spCanvas.width) resizeSpectrum();
   spCtx.clearRect(0, 0, spCanvas.width, spCanvas.height);
-  if (!analyser || !state.playing) { state.level = 0; return; }
+  // 唱片店的 8-bit 片段也接到同一个 analyser 上，播放时频谱照样要动
+  const live = state.playing || !!window.__ewExternalAudio;
+  if (!analyser || !live) { state.level = 0; publishMenuBands(false); return; }
   analyser.getByteFrequencyData(freqData);
   const bars = 48, step = Math.floor(freqData.length / bars);
   const w = spCanvas.width / bars;
@@ -324,6 +368,8 @@ function drawSpectrum() {
     spCtx.fillStyle = grad;
     spCtx.fillRect(i * w + w * .18, spCanvas.height - h, w * .64, h);
   }
+  readMenuBands();
+  publishMenuBands(true);
   lowAvg = lowAvg * .8 + (sum / bars) * .2;
   state.level = Math.min(1.4, lowAvg * 2.2);
   document.documentElement.style.setProperty('--beat', state.level.toFixed(3));

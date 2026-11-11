@@ -1,0 +1,165 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 · 深夜频道（MIDNIGHT）
+   ---------------------------------------------------------------
+   0–5 点整套令牌切到单色深蓝，亮度降一档；页面本身只做「一张夜图 +
+   一张慢歌清单 + 一个反算法按钮」，不加额外控件。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 这两个元素自带 display，hidden 属性会被覆盖，必须显式关掉 */
+#nav-night[hidden], .night-strip[hidden] { display: none !important; }
+
+body.midnight {
+  --px-0: #05070c;
+  --px-1: #080d16;
+  --px-2: #0c1420;
+  --px-3: #122032;
+  --px-4: #1a2b40;
+  --px-line: #1e2e44;
+  --px-line-hi: #3d5573;
+  --px-txt: #cfdae8;
+  --px-dim: #8096ad;
+  --px-amber: #7f9dc9;
+  --px-amber-hi: #a9c4e6;
+  --px-blue: #5f83b0;
+  --ink-0: #05070c;
+  --ink-1: #080d16;
+  --ink-2: #0c1420;
+  --ink-3: #122032;
+  --line: #1e2e44;
+  --line-2: #2a3d56;
+  --txt: #cfdae8;
+  --txt-dim: #8096ad;
+  --amber: #7f9dc9;
+  --amber-2: #a9c4e6;
+  --amber-rgb: 127, 157, 201;
+  --glass: #0a111c;
+  --glass-strong: #080d16;
+}
+
+/* 亮度收一档：封面与整体画面略压暗，不压字 */
+body.midnight .b-card img,
+body.midnight #page-midnight img { filter: brightness(.86) saturate(.82); }
+
+/* ── 发现页顶部提示条 ───────────────────────── */
+.night-strip {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--px-2);
+  border: 2px solid var(--px-line);
+  box-shadow: var(--px-shadow);
+  color: var(--px-txt);
+}
+.night-strip .ns-kicker {
+  font-size: 12px; letter-spacing: .12em; color: var(--px-blue, #5f83b0);
+  white-space: nowrap;
+}
+.night-strip b { font-weight: 400; color: var(--px-txt); white-space: nowrap; }
+.night-strip .ns-sub { flex: 1 1 auto; min-width: 0; color: var(--px-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.night-strip .ns-go {
+  flex: 0 0 auto; appearance: none; cursor: pointer;
+  font: inherit; padding: 2px 10px;
+  background: var(--px-amber); color: #14100a;
+  border: 2px solid var(--px-amber-hi);
+}
+.night-strip .ns-go:hover { background: var(--px-amber-hi); }
+
+/* ── 页面 ─────────────────────────────────── */
+#page-midnight {
+  max-width: 980px; margin: 0 auto;
+}
+.night-inner { position: relative; z-index: 2; }
+
+.night-sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.night-stars {
+  position: absolute; inset: -10% -10% 0 -10%;
+  background-image:
+    radial-gradient(rgba(207, 218, 232, .5) 1px, transparent 1px),
+    radial-gradient(rgba(127, 157, 201, .35) 1px, transparent 1px);
+  background-size: 53px 41px, 31px 27px;
+  background-position: 0 0, 17px 13px;
+  mask-image: linear-gradient(to bottom, #000 0 42%, transparent 78%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 42%, transparent 78%);
+}
+
+.night-head { display: flex; align-items: flex-start; gap: 20px; padding: 8px 0 18px; }
+.night-moon { flex: 0 0 auto; width: 96px; height: 96px; }
+.night-moon svg { width: 96px; height: 96px; image-rendering: pixelated; }
+.night-copy { min-width: 0; }
+.night-kicker {
+  font-size: 12px; letter-spacing: .14em; color: var(--px-blue, #5f83b0);
+  margin-bottom: 8px;
+}
+.night-kicker .dot { opacity: .5; margin: 0 6px; }
+#night-title {
+  font-family: var(--pixel-font); font-size: 24px; font-weight: 400;
+  letter-spacing: .06em; margin: 0 0 6px; color: var(--px-txt);
+}
+#night-lead { margin: 0 0 10px; color: var(--px-dim); }
+.night-lyric {
+  margin: 0; color: var(--px-amber-hi);
+  border-left: 2px solid var(--px-line); padding-left: 10px;
+}
+
+.night-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+.night-btn {
+  appearance: none; cursor: pointer; font: inherit;
+  padding: 4px 12px;
+  background: var(--px-amber); color: #14100a;
+  border: 2px solid var(--px-amber-hi); box-shadow: var(--px-shadow);
+}
+.night-btn:hover { background: var(--px-amber-hi); }
+.night-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0, 0, 0, .8); }
+.night-btn.ghost { background: var(--px-2); color: var(--px-txt); border-color: var(--px-line); }
+.night-btn.ghost:hover { border-color: var(--px-amber); color: var(--px-amber-hi); }
+.night-link {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--px-dim); text-decoration: underline;
+  text-underline-offset: 3px; padding: 4px 2px;
+}
+.night-link:hover { color: var(--px-txt); }
+.night-hint { color: var(--px-dim); font-size: 12px; }
+
+.night-list { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--px-line); }
+.nl-row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 56px;
+  padding: 6px; border-bottom: 2px solid var(--px-line);
+  cursor: pointer;
+}
+.nl-row:hover { background: var(--px-2); }
+.nl-row.cur { background: var(--px-2); box-shadow: inset 2px 0 0 var(--px-amber); }
+.nl-idx {
+  flex: 0 0 26px; color: var(--px-dim);
+  font-variant-numeric: tabular-nums;
+}
+.nl-cover {
+  flex: 0 0 40px; height: 40px;
+  background: var(--px-3) center/cover no-repeat;
+  border: 2px solid var(--px-line);
+  image-rendering: pixelated;
+}
+.nl-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.nl-meta b {
+  font-weight: 400; color: var(--px-txt);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nl-meta i { font-style: normal; color: var(--px-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nl-dur { flex: 0 0 auto; color: var(--px-dim); font-variant-numeric: tabular-nums; }
+.nl-slow {
+  flex: 0 0 auto; font-size: 12px; color: var(--px-blue, #5f83b0);
+  border: 2px solid var(--px-line); padding: 0 6px;
+}
+
+.night-explain {
+  margin: 14px 0 0; color: var(--px-dim); line-height: 2;
+  border-top: 2px dashed var(--px-line); padding-top: 12px;
+}
+.night-empty { padding: 26px 0; color: var(--px-dim); }
+
+/* 窄屏：月亮缩小，说明条换行 */
+@media (max-width: 899px) {
+  .night-head { gap: 14px; }
+  .night-moon, .night-moon svg { width: 64px; height: 64px; }
+  #night-title { font-size: 24px; }
+  .night-strip .ns-sub { display: none; }
+}

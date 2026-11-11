@@ -1,0 +1,117 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 · 隐藏唱片店（CRATE DIGGING）
+   ---------------------------------------------------------------
+   四个抽屉格一排，锁着的格只有钉子与线索；解锁的格能直接放 16 秒
+   8-bit 片段（前端现场合成）。视觉沿用像素色板：零圆角、2px 框、硬投影。
+   ═══════════════════════════════════════════════════════════════ */
+
+.crate-entry {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left; cursor: pointer;
+  font: inherit; color: var(--px-txt);
+  background: var(--px-2); border: 2px solid var(--px-line);
+  box-shadow: var(--px-shadow);
+  padding: 12px 14px;
+}
+.crate-entry:hover { border-color: var(--px-amber); }
+.crate-entry .ce-kicker { flex: 0 0 auto; color: var(--px-blue, #5f83b0); letter-spacing: .1em; }
+.crate-entry .ce-title { flex: 1 1 auto; min-width: 0; color: var(--px-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crate-entry .ce-count { flex: 0 0 auto; color: var(--px-amber); font-variant-numeric: tabular-nums; }
+
+#page-crate { max-width: 1120px; margin: 0 auto; }
+
+.crate-head { margin-bottom: 16px; }
+.crate-kicker { color: var(--px-blue, #5f83b0); letter-spacing: .14em; font-size: 12px; }
+.crate-title {
+  font-family: var(--pixel-font); font-size: 24px; font-weight: 400;
+  letter-spacing: .08em; margin: 6px 0 6px;
+}
+.crate-lead { margin: 0; color: var(--px-dim); line-height: 2; max-width: 640px; }
+
+.crate-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+
+.crate-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+.slot { display: flex; flex-direction: column; gap: 6px; }
+.sleeve {
+  position: relative; aspect-ratio: 1 / 1;
+  background: var(--px-2); border: 2px solid var(--px-line);
+  box-shadow: var(--px-shadow);
+  display: grid; place-items: center;
+  cursor: default; overflow: hidden;
+}
+.slot.on .sleeve { cursor: pointer; }
+.slot.on .sleeve:hover { border-color: var(--px-amber); }
+
+/* 唱片：一个圆 + 中心标签，纯 CSS，不额外拉图 */
+.disc {
+  width: 74%; height: 74%; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, var(--label, #e6b06a) 0 18%, transparent 18.5%),
+    repeating-radial-gradient(circle at 50% 50%, #12161c 0 8%, #0b0e12 8% 12%);
+  border: 2px solid #05070a;
+  box-shadow: inset 0 0 0 2px #1a2029;
+  image-rendering: pixelated;
+}
+.slot.on .disc {
+  background:
+    radial-gradient(circle at 50% 50%, var(--label, #e6b06a) 0 18%, transparent 18.5%),
+    repeating-radial-gradient(circle at 50% 50%, #1a1f27 0 8%, #11151b 8% 12%);
+}
+.sleeve .sname {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 3px 6px; background: rgba(0, 0, 0, .62);
+  color: var(--px-txt); letter-spacing: .12em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.slot .tagline {
+  display: flex; justify-content: space-between; gap: 6px;
+  color: var(--px-dim); font-size: 12px;
+  white-space: nowrap; overflow: hidden;
+}
+.slot.locked .sleeve { border-style: dashed; box-shadow: none; background: var(--px-1); }
+.slot.locked .lock { width: 20px; height: 25px; image-rendering: pixelated; }
+.slot.locked .q { color: var(--px-line); letter-spacing: .3em; }
+.slot.playing .sleeve { border-color: var(--px-amber-hi); box-shadow: 0 0 0 2px var(--px-amber) inset, var(--px-shadow); }
+.slot.playing .disc { animation: spin 3.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.crate-progress {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 14px; border-top: 2px dashed var(--px-line);
+  color: var(--px-dim);
+}
+.cp-bar { display: flex; gap: 3px; }
+.cp-bar i { display: block; width: 14px; height: 8px; background: var(--px-3); border: 2px solid var(--px-line); }
+.cp-bar i.on { background: var(--px-amber); border-color: var(--px-amber-hi); }
+.crate-progress b { font-weight: 400; color: var(--px-amber-hi); }
+
+.crate-aside {
+  background: var(--px-2); border: 2px solid var(--px-line); box-shadow: var(--px-shadow);
+  padding: 14px;
+}
+.crate-aside h4 {
+  margin: 0 0 8px; font: inherit; font-weight: 400;
+  color: var(--px-blue, #5f83b0); letter-spacing: .14em; font-size: 12px;
+}
+.crate-aside h4 + h4 { margin-top: 16px; }
+.crate-aside p { margin: 0; color: var(--px-dim); line-height: 2; }
+.crate-log { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+.crate-log .cl-line { display: flex; gap: 8px; color: var(--px-dim); }
+.crate-log .cl-line i { font-style: normal; color: var(--px-line-hi, #485466); }
+.crate-log .cl-line.on { color: var(--px-txt); }
+.crate-tip {
+  margin-top: 14px; padding: 10px;
+  border: 2px solid var(--px-line); background: var(--px-1);
+  color: var(--px-txt);
+}
+.crate-tip span { display: block; color: var(--px-blue, #5f83b0); letter-spacing: .12em; font-size: 12px; margin-bottom: 4px; }
+.crate-foot { margin: 14px 0 0; color: var(--px-dim); font-size: 12px; }
+
+@media (max-width: 1023px) {
+  .crate-body { grid-template-columns: minmax(0, 1fr); }
+  .crate-slots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .crate-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

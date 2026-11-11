@@ -1,0 +1,84 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 · 像素唱片墙（THE WALL）
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 曲库页里的三个「收藏」入口排成一列 */
+.mine-entries { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+
+.wall-entry {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left; cursor: pointer;
+  font: inherit; color: var(--px-txt);
+  background: var(--px-2); border: 2px solid var(--px-line);
+  box-shadow: var(--px-shadow); padding: 12px 14px;
+}
+.wall-entry:hover { border-color: var(--px-amber); }
+.wall-entry .we-kicker { flex: 0 0 auto; color: var(--px-blue, #5f83b0); letter-spacing: .1em; }
+.wall-entry .we-title { flex: 1 1 auto; min-width: 0; color: var(--px-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wall-entry .we-count { flex: 0 0 auto; color: var(--px-amber); font-variant-numeric: tabular-nums; }
+
+#page-wall { max-width: 1120px; margin: 0 auto; }
+.wall-head { margin-bottom: 16px; }
+.wall-kicker { color: var(--px-blue, #5f83b0); letter-spacing: .14em; font-size: 12px; }
+.wall-title {
+  font-family: var(--pixel-font); font-size: 24px; font-weight: 400;
+  letter-spacing: .08em; margin: 6px 0 6px;
+}
+.wall-lead { margin: 0; color: var(--px-dim); line-height: 2; max-width: 640px; }
+
+.wall-grid {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px;
+  margin-top: 6px;
+}
+.wall-tile {
+  position: relative; aspect-ratio: 1 / 1;
+  background: var(--px-2) center/cover no-repeat;
+  border: 2px solid var(--px-line);
+  box-shadow: var(--px-shadow);
+  cursor: pointer; overflow: hidden;
+}
+.wall-tile img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; }
+/* 没有封面时：一个像素音符 + 常驻曲名，不能留一块空黑 */
+.wall-tile.no-cover { background: var(--px-2); }
+.wall-tile.no-cover::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--px-note) center / 42px 42px no-repeat;
+  opacity: .45;
+}
+.wall-tile.no-cover .wt-info { transform: none; background: rgba(0, 0, 0, .5); }
+.wall-tile:hover { border-color: var(--px-amber); }
+.wall-tile .wt-info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 4px 5px;
+  background: rgba(0, 0, 0, .72);
+  color: var(--px-txt);
+  transform: translateY(100%);
+  transition: transform .12s linear;
+  max-height: 100%;
+}
+.wall-tile:hover .wt-info { transform: translateY(0); }
+.wall-tile .wt-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wall-tile .wt-artist { color: var(--px-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 新挂上的：一圈暖光 + 「新」角标 */
+.wall-tile.is-new { border-color: var(--px-amber); box-shadow: 0 0 0 2px rgba(230, 176, 106, .35), var(--px-shadow); }
+.wall-tile.is-new::after {
+  content: '新'; position: absolute; top: 0; right: 0;
+  padding: 0 4px; background: var(--px-amber); color: #17120a;
+}
+/* 空位：钉子 */
+.wall-tile.empty {
+  cursor: default; background: var(--px-1); border-style: dashed; box-shadow: none;
+}
+.wall-tile.empty::before {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  background: var(--px-line); box-shadow: 0 0 0 2px rgba(0, 0, 0, .6);
+}
+.wall-tile.empty::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 1px; height: 12px; margin: -6px 0 0 0; background: var(--px-line); opacity: .5;
+}
+.wall-foot { margin: 14px 0 0; color: var(--px-dim); border-top: 2px dashed var(--px-line); padding-top: 12px; line-height: 2; }
+
+@media (max-width: 1023px) { .wall-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .wall-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

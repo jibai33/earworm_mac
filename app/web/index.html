@@ -144,6 +144,10 @@
 <link rel="stylesheet" href="./app.css">
 <link rel="stylesheet" href="./pixel.css">
 <link rel="stylesheet" href="./egg.css">
+<link rel="stylesheet" href="./night.css">
+<link rel="stylesheet" href="./crate.css">
+<link rel="stylesheet" href="./wall.css">
+<link rel="stylesheet" href="./yearbook.css">
 </head>
 <body>
 <!-- ══ 开机动画：国风墨染 · 印章浮现 ══
@@ -182,6 +186,7 @@
     <button id="account-btn" class="source-btn" aria-label="音源连接" title="查看 / 连接各平台音源">
       <span class="acc-glyph">源</span><span class="acc-count" id="account-count">0/4</span>
     </button>
+    <button id="nav-night" class="orb-btn" aria-label="深夜频道" title="深夜频道" hidden>夜</button>
     <button id="nav-mine" class="orb-btn" aria-label="曲库">曲</button>
     <div class="topbar-user" id="topbar-user" hidden>
       <img id="user-avatar" alt="">
@@ -251,6 +256,13 @@
   </aside>
 
   <main class="bento">
+    <!-- 深夜频道提示条：只在 0–5 点（或手动进入）出现 -->
+    <div class="night-strip" id="night-strip" hidden>
+      <span class="ns-kicker">MIDNIGHT · 00:00—05:00</span>
+      <b>现在只放慢的</b>
+      <span class="ns-sub">这个点你也醒着 —— 不推热歌，不猜心情</span>
+      <button class="ns-go" id="night-strip-go" type="button">进入深夜频道</button>
+    </div>
     <!-- 继续听 / 开始听歌 -->
     <div class="b-row">
     <section class="b-card bc-continue" id="bento-continue" role="button" tabindex="0">
@@ -329,6 +341,37 @@
   </main>
 </div>
 
+<!-- ══ 深夜频道（0–5 点自动进入） ══ -->
+<div id="page-midnight" class="page" hidden>
+  <div class="night-sky" aria-hidden="true"><span class="night-stars"></span></div>
+  <div class="night-inner">
+    <header class="night-head">
+      <div class="night-moon" aria-hidden="true">
+        <svg viewBox="0 0 32 32" shape-rendering="crispEdges">
+          <path fill="#a9c4e6" d="M14 0h4v1H14zM10 1h12v1H10zM8 2h16v1H8zM7 3h18v1H7zM5 4h22v1H5zM4 5h24v1H4zM4 6h24v1H4zM3 7h26v1H3zM2 8h28v1H2zM2 9h28v1H2zM1 10h30v1H1zM1 11h30v1H1zM1 12h30v1H1zM1 13h30v1H1zM0 14h32v1H0zM0 15h32v1H0zM0 16h32v1H0zM0 17h32v1H0zM1 18h30v1H1zM1 19h30v1H1zM1 20h30v1H1zM1 21h30v1H1zM2 22h28v1H2zM2 23h28v1H2zM3 24h26v1H3zM4 25h24v1H4zM4 26h24v1H4zM5 27h22v1H5zM7 28h18v1H7zM8 29h16v1H8zM10 30h12v1H10zM14 31h4v1H14z"/>
+          <path fill="#7f9dc9" d="M9 7h3v1H9zM8 8h5v1H8zM8 9h5v1H8zM8 10h5v1H8zM9 11h3v1H9zM20 11h1v1H20zM19 12h3v1H19zM18 13h5v1H18zM19 14h3v1H19zM20 15h1v1H20zM13 18h1v1H13zM12 19h3v1H12zM11 20h5v1H11zM12 21h3v1H12zM13 22h1v1H13z"/>
+        </svg>
+      </div>
+      <div class="night-copy">
+        <div class="night-kicker">MIDNIGHT CHANNEL <span class="dot">·</span> <span id="night-clock">00:00</span> <span class="dot">·</span> <span id="night-count">正在读取</span></div>
+        <h1 id="night-title">现在只放慢的</h1>
+        <p id="night-lead">这个点你也醒着 —— 不推热歌，不猜心情。</p>
+        <p class="night-lyric" id="night-lyric">「晚安，是留给还醒着的人的暗号」</p>
+      </div>
+    </header>
+
+    <div class="night-bar">
+      <button id="night-surprise" class="night-btn" type="button">给我一首意外的</button>
+      <span class="night-hint" id="night-hint">绕过听感画像 · 一次</span>
+      <button id="night-refresh" class="night-btn ghost" type="button">再换一批</button>
+      <button id="night-exit" class="night-link" type="button">今晚不熬夜</button>
+    </div>
+
+    <ol class="night-list" id="night-list"></ol>
+    <p class="night-explain" id="night-explain">只取「慢」：命中钢琴 / 器乐 / 民谣 / 爵士 / 雨声等标签，排除摇滚与电子。</p>
+  </div>
+</div>
+
 <!-- ══ 曲库页 ══ -->
 <div id="page-mine" class="page mine" hidden>
   <div id="mine-user" class="mine-card" hidden>
@@ -343,6 +386,24 @@
     <button class="brush-btn" onclick="document.getElementById('login-btn').click()">去登录</button>
   </div>
   <button id="logout-btn" class="brush-btn danger" onclick="logout()" hidden>退出登录</button>
+  <!-- 三件「收藏」入口：唱片墙 / 唱片店 / 年鉴 -->
+  <div class="mine-entries">
+    <button id="wall-entry" class="wall-entry" type="button">
+      <span class="we-kicker">THE WALL · 唱片墙</span>
+      <span class="we-title">听过的封面，按钉在墙上排</span>
+      <span class="we-count" id="wall-entry-count">0 / 24</span>
+    </button>
+    <button id="crate-entry" class="crate-entry" type="button">
+      <span class="ce-kicker">CRATE · 隐藏唱片店</span>
+      <span class="ce-title">彩蛋收进抽屉里，每张都能播</span>
+      <span class="ce-count" id="crate-entry-count">0 / 8</span>
+    </button>
+    <button id="yearbook-entry" class="wall-entry" type="button">
+      <span class="we-kicker">GAZETTE · 听觉年鉴</span>
+      <span class="we-title">这个月到底发生了什么，印成一张小报</span>
+      <span class="we-count">撕下来存 PNG</span>
+    </button>
+  </div>
   <section id="collect-section" hidden>
     <h2 class="sec-title">收藏 <span class="sec-en">COLLECTED</span></h2>
     <div id="collect-list" class="results"></div>
@@ -357,6 +418,89 @@
   <div id="legacy-library" hidden>
     <h2 class="sec-title">曲库 <span class="sec-en">MY PLAYLISTS</span></h2>
     <div id="my-playlists" class="pl-list"></div>
+  </div>
+</div>
+
+<!-- ══ 隐藏唱片店（彩蛋收集） ══ -->
+<div id="page-crate" class="page" hidden>
+  <header class="crate-head">
+    <div class="crate-kicker">CRATE DIGGING <span class="dot">·</span> <span id="crate-count-label">—</span></div>
+    <div class="crate-title">隐藏唱片店</div>
+    <p class="crate-lead">彩蛋不该看完就没。每达成一件事，抽屉里多一张唱片——不是徽章，是能真的放出来的 16 秒 8-bit 片段，由本机现场合成。</p>
+  </header>
+  <div class="crate-body">
+    <div class="crate-main">
+      <div class="crate-slots" id="crate-slots"></div>
+      <div class="crate-progress">
+        <span id="crate-progress-label">0 / 8</span>
+        <div class="cp-bar" id="crate-bar"></div>
+        <b id="crate-next-hint">—</b>
+      </div>
+    </div>
+    <aside class="crate-aside">
+      <h4>收 藏 记 录</h4>
+      <div class="crate-log" id="crate-log"></div>
+      <h4>暗 号 来 源</h4>
+      <p>登录彩蛋、深夜频道、唱片墙各掉一张，不重复。</p>
+      <div class="crate-tip" id="crate-tip">正在读取抽屉……</div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══ 像素唱片墙 ══ -->
+<div id="page-wall" class="page" hidden>
+  <header class="wall-head">
+    <div class="wall-kicker">THE WALL <span class="dot">·</span> <span id="wall-meta">—</span></div>
+    <div class="wall-title">我的墙</div>
+    <p class="wall-lead">听过的封面按「钉在墙上」排，最近听的先挂。7 天内新挂上的亮一圈暖光；空着的位置是钉子，不是占位符。</p>
+  </header>
+  <div class="wall-grid" id="wall-grid"></div>
+  <p class="wall-foot" id="wall-foot">正在数墙上的钉子……</p>
+</div>
+
+<!-- ══ 听觉年鉴（像素小报） ══ -->
+<div id="page-yearbook" class="page" hidden>
+  <article class="paper" id="yb-paper">
+    <div class="masthead">
+      <b>闻 曲 小 报</b>
+      <span id="yb-issue">— 月号</span>
+    </div>
+    <div class="rule">
+      <span>听 觉 年 鉴</span>
+      <span id="yb-period">—</span>
+      <span>本机生成</span>
+    </div>
+    <h2 id="yb-title">正在排版……</h2>
+    <p class="dek" id="yb-dek"></p>
+    <div id="yb-body">
+      <div class="nums" id="yb-nums">
+        <div><b id="yb-plays">0</b><i>次播放</i></div>
+        <div><b id="yb-songs">0</b><i>首</i></div>
+        <div><b id="yb-rate">0%</b><i>完播率</i></div>
+      </div>
+      <div class="cols">
+        <div>
+          <div class="chart" id="yb-chart"></div>
+          <div class="axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+          <p id="yb-peak"></p>
+        </div>
+        <div>
+          <p class="side-title">最 常 跳 过</p>
+          <ul id="yb-skips"></ul>
+          <p class="side-title">第 一 次 点 红 心</p>
+          <p id="yb-firstlike" style="margin-top:4px"></p>
+        </div>
+      </div>
+    </div>
+    <p class="fineprint" id="yb-fineprint"></p>
+    <div class="stamp">
+      <span id="yb-note">本机生成 · 不出网</span>
+      <span class="yb-seal">本期<br>存档</span>
+    </div>
+  </article>
+  <div class="yb-actions">
+    <button id="yb-export" class="wall-btn" type="button">撕下来存 PNG</button>
+    <span class="yb-hint">存成图片时会重画一遍，默认不带任何账号信息</span>
   </div>
 </div>
 
@@ -698,6 +842,10 @@
 <script src="./app.js"></script>
 <script src="./taste-ui.js"></script>
 <script src="./egg.js"></script>
+<script src="./night.js"></script>
+<script src="./crate.js"></script>
+<script src="./wall.js"></script>
+<script src="./yearbook.js"></script>
 <!-- <script src="./muse.js"></script> -->
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
