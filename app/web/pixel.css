@@ -485,7 +485,9 @@ button:active,
 }
 
 .mini-name {
-  font-size: 24px !important;
+  /* 24px 在 46px 高的条里过于抢眼，且同样宽度能显示的曲名更少 */
+  font-size: 20px !important;
+  line-height: 1.25 !important;
   color: var(--px-txt) !important;
 }
 
@@ -902,35 +904,44 @@ body:has(#mini[hidden]) .px-muse { bottom: 28px; }
    版式打磨：只调排版与可读性，不动业务逻辑、不改像素语言
    ══════════════════════════════════════════════════════════════ */
 
-/* 左栏补足高度与常用快捷键，避免右侧长列表旁留一大片空白 */
+/* 左栏：网格默认拉伸会把卡片拉到与右侧长列表等高，中间空出一大片。
+   改为按内容高度、贴顶对齐，快捷键紧跟按钮，信息密度反而更紧。 */
 .side-panel {
-  min-height: min(680px, calc(100dvh - var(--topbar-h) - 40px)) !important;
+  align-self: start !important;
+  min-height: 0 !important;
 }
 .sp-actions { margin-top: 0 !important; }
 .sp-shortcuts {
-  margin-top: auto; padding-top: 16px;
+  margin-top: 18px; padding-top: 16px;
   border-top: 2px dashed var(--px-line);
 }
 .sp-shortcuts-title {
   font-size: 12px; color: var(--px-dim); letter-spacing: .06em; margin-bottom: 10px;
 }
 .sp-key {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; padding: 5px 0; font-size: 12px; color: var(--px-dim);
+  /* 键帽与说明原本被 space-between 撑到两端，中间空出 200px，读起来不像一组 */
+  display: flex; align-items: center; justify-content: flex-start;
+  gap: 12px; padding: 5px 0; font-size: 12px; color: var(--px-dim);
 }
 .sp-key kbd {
   font-family: var(--pixel-font); font-size: 12px; color: var(--px-amber);
   background: var(--px-2); border: 2px solid var(--px-line);
   padding: 2px 6px; box-shadow: 2px 2px 0 #000; white-space: nowrap;
+  min-width: 62px; text-align: center;
 }
 
 /* 主卡标题允许两行，长曲名不再一律截成「……」。
    .bc-info 原本按内容收缩，百分比宽度会把标题挤成孤字换行，这里让它占满卡片。 */
 .bc-info { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+/* 主卡的播放键是绝对定位浮在右下角，曲名会钻到按钮底下；
+   留出按钮宽度 + 间隙，长曲名换行也不会和它叠在一起。 */
+.bc-continue .bc-info { padding-right: 74px; }
 .bc-name {
   white-space: normal !important;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; max-width: 100%; overflow-wrap: anywhere;
+  /* 两行时均衡断行，避免最后一行只剩一个「ン」「的」这样的孤字 */
+  text-wrap: balance;
 }
 .bc-continue, .bc-mini { min-height: 156px; }
 
@@ -983,4 +994,34 @@ img.px-broken {
   .b-row2 { grid-template-columns: 1fr !important; }
   .sp-shortcuts { display: none; }
   .side-panel { min-height: 0 !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   播放条：控件数量随可用宽度递减
+   底栏里塞着 1 封面 + 3 曲名区 + 8 个按钮，400px 时 mini-meta
+   会被挤到 0 宽 —— 曲名直接消失。按档位收起低频控件，保证曲名。
+   ══════════════════════════════════════════════════════════════ */
+.mini-meta { flex: 1 1 auto; min-width: 88px; }
+
+/* 音量与时长最先让位：键盘 / 系统音量也能调 */
+@media (max-width: 1099px) {
+  .bar-right .vol,
+  .bar-time { display: none !important; }
+}
+
+/* 播放模式 / 队列 / 歌词在沉浸播放页都有入口，底栏只留播放控制 */
+@media (max-width: 899px) {
+  .bar-right { display: none !important; }
+  .bar-center { gap: 4px !important; margin-left: 2px; }
+  .mini-name { font-size: 17px !important; }
+}
+
+/* 再窄一档：缩小封面与控制键，把宽度还给曲名 */
+@media (max-width: 560px) {
+  .playerbar { gap: 8px !important; }
+  .playerbar img { width: 40px !important; height: 40px !important; }
+  .bar-center .bar-ico { width: 32px !important; }
+  .bar-center .orb-play.sm { width: 32px !important; height: 32px !important; }
+  .mini-name { font-size: 16px !important; }
+  .mini-artist { font-size: 11px !important; }
 }
