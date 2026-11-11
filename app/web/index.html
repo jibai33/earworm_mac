@@ -148,6 +148,7 @@
 <link rel="stylesheet" href="./crate.css">
 <link rel="stylesheet" href="./wall.css">
 <link rel="stylesheet" href="./yearbook.css">
+<link rel="stylesheet" href="./home-extra.css">
 </head>
 <body>
 <!-- ══ 开机动画：国风墨染 · 印章浮现 ══
@@ -253,6 +254,25 @@
       <div class="sp-key"><kbd>Cmd U</kbd><span>播放队列</span></div>
       <div class="sp-key"><kbd>Cmd ⇧ M</kbd><span>迷你播放器</span></div>
     </div>
+
+    <!-- 唱片店进度：把收集制搬到首页，不用绕进曲库才看得到 -->
+    <div class="sp-crate" id="sp-crate" role="button" tabindex="0" aria-label="打开隐藏唱片店">
+      <div class="sp-crate-head">
+        <span>CRATE · 唱片店</span>
+        <b id="sp-crate-count">0 / 8</b>
+      </div>
+      <div class="sp-crate-dots" id="sp-crate-dots"></div>
+      <div class="sp-crate-hint" id="sp-crate-hint">正在数抽屉里的唱片……</div>
+    </div>
+    <button class="sp-night" id="sp-night" type="button">
+      <span class="spn-glyph" aria-hidden="true">
+        <svg viewBox="0 0 16 16" shape-rendering="crispEdges">
+          <path fill="currentColor" d="M7 0h2v1H7zM5 1h4v1H5zM4 2h5v1H4zM3 3h4v1H3zM2 4h4v1H2zM2 5h3v1H2zM1 6h3v1H1zM1 7h3v1H1zM1 8h3v1H1zM1 9h3v1H1zM2 10h3v1H2zM2 11h4v1H2zM3 12h4v1H3zM4 13h4v1H4zM5 14h5v1H5zM7 15h3v1H7zM8 3h2v1H8zM9 5h3v1H9zM11 7h4v1H11zM9 9h3v1H9zM8 11h2v1H8z"/>
+        </svg>
+      </span>
+      <span class="spn-txt"><b>夜间频道</b><i>0–5 点 · 只放慢的</i></span>
+      <span class="spn-arrow">›</span>
+    </button>
   </aside>
 
   <main class="bento">
@@ -268,6 +288,11 @@
     <section class="b-card bc-continue" id="bento-continue" role="button" tabindex="0">
       <img id="hero-cover" alt="" loading="lazy">
       <div class="b-veil"></div>
+      <!-- 此刻在响：与菜单栏图标同源的 8 段电平，暂停时落成基线 -->
+      <div class="hero-meter" id="hero-meter" aria-hidden="true">
+        <span class="hm-label" id="hm-label">IDLE</span>
+        <div class="hm-bars" id="hm-bars"></div>
+      </div>
       <div class="bc-info">
         <div class="b-kicker" id="bc-kicker">CONTINUE · 开始听歌</div>
         <div class="bc-name" id="hero-name"></div>
@@ -316,6 +341,30 @@
       </div>
       <span class="nu-arrow">›</span>
     </section>
+    </div>
+
+    <!-- 听感层：唱片墙预览 + 年鉴摘要，都是真实记录 -->
+    <div class="b-row3">
+      <section class="b-card home-wall" id="home-wall-card" role="button" tabindex="0">
+        <div class="b-kicker">THE WALL · 唱片墙 <span class="k-right" id="hw-meta">0 / 24</span></div>
+        <div class="hw-strip" id="hw-strip"></div>
+        <div class="hw-foot">
+          <span class="hw-note" id="hw-note">听一首，墙上就多一枚钉子</span>
+          <span class="hw-go">看整面墙 ›</span>
+        </div>
+      </section>
+
+      <section class="b-card home-gazette" id="home-yb-card" role="button" tabindex="0">
+        <div class="b-kicker">GAZETTE · 听觉年鉴 <span class="k-right" id="hy-period"></span></div>
+        <div class="hy-title" id="hy-title">这一期还是白的</div>
+        <div class="hy-nums" id="hy-nums"></div>
+        <div class="hy-dek" id="hy-dek"></div>
+        <div class="hy-chart" id="hy-chart"></div>
+        <div class="hw-foot">
+          <span class="hw-note" id="hy-note">只读本机记录 · 不出网</span>
+          <span class="hw-go">读小报 ›</span>
+        </div>
+      </section>
     </div>
 
     <!-- 为你推荐 -->
@@ -846,6 +895,7 @@
 <script src="./crate.js"></script>
 <script src="./wall.js"></script>
 <script src="./yearbook.js"></script>
+<script src="./home-extra.js"></script>
 <!-- <script src="./muse.js"></script> -->
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');

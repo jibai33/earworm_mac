@@ -1,0 +1,153 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 · 首页「听感层」
+   ---------------------------------------------------------------
+   三块新东西，全部挂在已有数据上，不做装饰性填充：
+     · 主卡右上「此刻在响」—— 与菜单栏图标同源的 8 段电平
+     · 唱片墙预览 —— /api/taste/wall 的最近 9 枚，点开看整面
+     · 年鉴摘要 —— /api/taste/yearbook 的标题、三个数字、24 柱缩略
+     · 左栏唱片店进度 + 夜间频道入口 —— 填掉时钟卡下方的空白
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ---------- 主卡：此刻在响 ---------- */
+.hero-meter {
+  position: absolute; top: 14px; right: 16px; z-index: 2;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  pointer-events: none;
+}
+.hm-label {
+  font-size: 12px; letter-spacing: .12em;
+  color: rgba(var(--amber-rgb), .8);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .8);
+  transition: color .3s ease;
+}
+.hm-bars { display: flex; align-items: flex-end; gap: 3px; height: 42px; }
+.hm-bar {
+  width: 5px; height: 2px; background: var(--px-amber);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .55);
+  transition: height .09s linear, background .3s ease;
+}
+/* 暂停 / 待机：柱子落回基线，标签转灰 */
+.hero-meter.is-idle .hm-bar { height: 2px; background: var(--px-4); }
+.hero-meter.is-idle .hm-label { color: rgba(176, 185, 194, .6); }
+
+/* ---------- 听感层：一行两块 ---------- */
+.b-row3 { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
+.b-row3 > * { min-width: 0; }
+
+.home-wall, .home-gazette {
+  padding: 14px 16px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* 唱片墙预览：整面墙缩略（8 × 3 = 24 格），空位照样画成钉子 */
+.home-wall {
+  background-image: radial-gradient(circle, rgba(234, 228, 214, .055) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+/* 列宽自适应：宽屏 8 列（24 = 3 行整），窄屏自动变多列，格子不会被撑大 */
+.hw-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+/* 空墙：只留一排钉子，铺满一行，不把 24 个空格堆成一片 */
+.hw-strip.is-empty { grid-template-columns: repeat(8, 1fr); }
+.hw-tile {
+  position: relative; aspect-ratio: 1; background: var(--px-2);
+  border: 2px solid var(--px-line); overflow: hidden;
+}
+.hw-tile img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  image-rendering: pixelated;
+}
+/* 没封面：像素音符兜底，不留白块 */
+.hw-tile.no-cover::before {
+  content: ''; position: absolute; inset: 22%;
+  background: var(--px-note) center/contain no-repeat; opacity: .8;
+}
+/* 7 天内新挂的：暖光边 */
+.hw-tile.is-new { border-color: var(--px-amber); box-shadow: 2px 2px 0 rgba(230, 176, 106, .28); }
+/* 空位是钉子：4px 方块钉在板中央，比虚线格子安静 */
+.hw-tile.pin { background: rgba(8, 9, 12, .5); border: 2px dashed rgba(72, 84, 102, .55); }
+.hw-tile.pin::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 4px; height: 4px; margin: -2px 0 0 -2px;
+  background: rgba(72, 84, 102, .9);
+}
+
+/* 年鉴导语：比标题轻、比脚注具体，用来补中段留白 */
+.hy-dek {
+  font-size: 12px; line-height: 1.6; color: var(--px-dim); margin-top: 2px;
+  text-wrap: pretty;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* 卡片脚注：左边一句说明，右边一个入口 */
+.hw-foot {
+  margin-top: auto; padding-top: 8px; border-top: 2px dashed var(--px-line);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  font-size: 12px; color: var(--px-dim);
+}
+.hw-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-go { color: var(--px-amber); white-space: nowrap; flex-shrink: 0; }
+.home-wall:hover .hw-go, .home-gazette:hover .hw-go { color: var(--px-amber-hi); }
+
+/* 年鉴摘要 */
+.hy-title {
+  font-family: var(--serif); font-size: 20px; line-height: 1.4; text-wrap: balance;
+  color: var(--px-txt); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.hy-nums { display: flex; align-items: flex-end; gap: 18px; margin-top: 2px; }
+.hy-num { display: flex; flex-direction: column; line-height: 1.15; }
+.hy-num b { font-family: var(--serif); font-size: 20px; color: var(--px-amber); }
+.hy-num span { font-size: 12px; color: var(--px-dim); }
+/* 24 小时缩略柱图：常态暗，有记录的亮，最高两点用实心 */
+.hy-chart { display: flex; align-items: flex-end; gap: 2px; height: 34px; margin-top: auto; padding-top: 6px; }
+.hy-bar { flex: 1 1 0; min-height: 2px; background: var(--px-3); border-top: 2px solid var(--px-line); }
+.hy-bar.on { background: rgba(230, 176, 106, .45); border-top-color: rgba(230, 176, 106, .7); }
+.hy-bar.peak { background: var(--px-amber); border-top-color: var(--px-amber-hi); }
+
+/* ---------- 左栏：唱片店进度 + 夜间频道 ---------- */
+.sp-crate {
+  margin-top: 14px; padding-top: 14px; border-top: 2px dashed var(--px-line);
+  cursor: pointer;
+}
+.sp-crate-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 12px; letter-spacing: .06em; color: var(--px-dim);
+}
+.sp-crate-head b { font-weight: 400; color: var(--px-amber); }
+.sp-crate-dots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin: 8px 0 6px; }
+.sc-dot { aspect-ratio: 1; background: var(--px-1); border: 2px solid var(--px-line); }
+.sc-dot.on {
+  background: var(--px-amber); border-color: var(--px-amber-hi);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .8);
+}
+.sp-crate-hint { font-size: 12px; line-height: 1.5; color: var(--px-dim); }
+.sp-crate:hover .sp-crate-head b { color: var(--px-amber-hi); }
+
+.sp-night {
+  margin-top: 12px; width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; text-align: left; cursor: pointer;
+  font-family: var(--pixel-font); color: var(--px-txt);
+  background: var(--px-2); border: 2px solid var(--px-line); box-shadow: 2px 2px 0 #000;
+  transition: border-color .2s ease, background .2s ease;
+}
+.sp-night:hover { border-color: var(--px-amber); background: var(--px-3); }
+.spn-glyph svg { width: 16px; height: 16px; display: block; color: var(--px-amber); }
+.spn-txt { display: flex; flex-direction: column; line-height: 1.45; min-width: 0; }
+.spn-txt b { font-weight: 400; font-size: 12px; }
+.spn-txt i { font-style: normal; font-size: 12px; color: var(--px-dim); }
+.spn-arrow { margin-left: auto; color: var(--px-dim); }
+
+/* ---------- 断点 ---------- */
+/* 900–1240：左栏横过来放，塞不下收集块，收起（曲库页仍有入口） */
+@media (max-width: 1240px) {
+  .b-row3 { grid-template-columns: 1fr; }
+  .sp-crate, .sp-night { display: none; }
+}
+@media (max-width: 620px) {
+  .hw-strip { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .hw-tile:nth-child(n + 13) { display: none; }
+  .hy-nums { gap: 14px; }
+  .hero-meter { top: 10px; right: 12px; }
+  .hm-bars { height: 30px; }
+  .hm-bar { width: 4px; }
+}
