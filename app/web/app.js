@@ -39,6 +39,8 @@ const state = {
   quality: localStorage.getItem('ew_quality') || 'exhigh',
   liked: {}, user: null,
   pendingSeek: 0,
+  // 连续「取不到地址」的计数：到上限就停，防止在整批坏歌上空转
+  failStreak: 0, _curSrc: '', _playStartedAt: 0,
   // v2 默认「全部音源」：一次检索/一屏浏览覆盖所有已连接平台，不再手动切换
   provider: localStorage.getItem('ew_provider_v2') || 'all',
   unifiedPage: 0, unifiedSources: [], accountStatus: null,
@@ -922,6 +924,75 @@ async function doSearch(kw, append) {
 }
 $('more-btn').addEventListener('click', () => doSearch(state.keyword || $('search-input').value.trim(), true));
 
+/* ---------- 取不到地址：就地跳过 ----------
+   一首歌唱不出来（VIP / 版权 / 未登录 / 代理 502），不该把界面停在报错上。
+   策略：先试一次换源（已有 _fallbackTried），换源也不成，直接往后放下一首；
+   连续失败到上限就停下并说明原因，免得在一整批坏歌上空转。 */
+const SKIP_LIMIT = 12;
+const deadSet = new Set();
+const deadKey = (s) => `${s.provider || 'netease'}:${s.id || s.mid || s.name}`;
+const isDead = (s) => deadSet.has(deadKey(s));
+
+/* 轻提示：跳歌这种事要让人看见，但别打断当前操作 */
+let toastTimer = 0;
+function toast(msg, warn) {
+  if (!msg) return;
+  let el = document.getElementById('ew-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'ew-toast';
+    el.className = 'ew-toast';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.toggle('warn', !!warn);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), warn ? 5200 : 2600);
+}
+
+/* 跳过时的下一首：随机模式随机换，其余按队列顺序；到底回卷——
+   回卷不会死循环，因为 skipStreak 到上限就停 */
+function nextAfterFail(from) {
+  const n = state.queue.length;
+  if (!n) return -1;
+  if (state.mode === 'shuffle' && n > 1) {
+    let t = from;
+    for (let k = 0; k < 8 && t === from; k++) t = Math.floor(Math.random() * n);
+    return t === from ? (from + 1) % n : t;
+  }
+  return (from + 1) % n;
+}
+
+function skipUnplayable(s, from, why) {
+  if (!s) return setPlayingUI(false);
+  deadSet.add(deadKey(s));
+  state.failStreak = (state.failStreak || 0) + 1;
+  renderQueue();
+
+  const n = state.queue.length;
+  const limit = Math.min(n, SKIP_LIMIT);
+  if (state.failStreak >= Math.max(1, limit)) {
+    state.failStreak = 0;
+    setPlayingUI(false);
+    $('mini').hidden = false;
+    $('mini-artist').textContent = n <= 1 ? '⚠ 这首歌取不到播放地址' : `⚠ 连续 ${limit} 首都取不到播放地址`;
+    toast(
+      n <= 1
+        ? '这首歌取不到播放地址，多半是 VIP 或版权限制。点右上角头像看看是不是没登录。'
+        : `连续 ${limit} 首都取不到播放地址，先停在这里。多半是该音源没登录，或地址全都失效了。`,
+      true
+    );
+    return;
+  }
+  // 连着跳时只报一句「连跳 N 首」，别让前一条提示被下一条顶掉
+  if (state.failStreak > 1) toast(`连跳 ${state.failStreak} 首不可播 · 最近「${s.name}」`);
+  else toast(`跳过「${s.name}」· ${why}`);
+  playIndex(nextAfterFail(from));
+}
+
 /* ---------- 歌曲条目 ---------- */
 function songEl(s, i, idxLabel) {
   const el = document.createElement('div');
@@ -940,7 +1011,16 @@ function songEl(s, i, idxLabel) {
       <div class="name">${escapeHtml(s.name)}</div>
       <div class="artist">${escapeHtml(s.artist)}${s.fee === 1 ? ' · VIP' : ''}${tag}${alt}</div>
     </div>`;
+  // 播不出来的歌留在列表里，但灰掉并标出来——用户得知道刚才跳过的是哪首
+  if (isDead(s)) {
+    el.classList.add('is-dead');
+    el.querySelector('.artist').insertAdjacentHTML('beforeend', '<span class="dead-tag">不可播</span>');
+  }
   el.addEventListener('click', () => {
+    // 手动点等于「再试一次」：清掉跳过记录，允许重新换源
+    deadSet.delete(deadKey(s));
+    delete s._fallbackTried;
+    delete s._retried;
     if (s.provider === 'xy' && s.isPodcast) openXYPodcast(s.pid || s.id);
     else playIndex(i);
   });
@@ -1015,12 +1095,14 @@ async function playIndex(i) {
     }
     const seek = state.pendingSeek; state.pendingSeek = 0;
     audio.src = url;
+    state._curSrc = audio.src;
     ensureAudioGraph();
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     if (seek) audio.addEventListener('loadedmetadata', function once() {
       audio.currentTime = seek; audio.removeEventListener('loadedmetadata', once);
     }, { once: true });
-    audio.play();
+    // play() 的拒绝交给 error 事件统一处理，别让它变成 unhandled rejection
+    audio.play().catch(() => { });
     bumpStats(s);
     saveState();
   } catch (err) {
@@ -1036,10 +1118,11 @@ async function playIndex(i) {
           renderQueue();
           return playIndex(i);
         }
-      } catch { /* 换源失败则回落到原始错误提示 */ }
+      } catch { /* 换源失败则往下跳，不停在这一首 */ }
     }
-    $('mini-artist').textContent = '⚠ ' + err.message;
-    setPlayingUI(false);
+    // 换源也不成：直接放下一首（用户要求：取不到地址就往后放）
+    const why = String((err && err.message) || '取不到播放地址').replace(/（.*?）/g, '').slice(0, 18);
+    skipUnplayable(s, i, why);
   }
 }
 function setPlayingUI(p) {
@@ -1049,11 +1132,31 @@ function setPlayingUI(p) {
   $('stage').classList.toggle('paused', !p);
   $('mini').classList.toggle('paused', !p);
 }
-function toggle() { if (!audio.src) return; audio.paused ? audio.play() : audio.pause(); }
-audio.addEventListener('play', () => { setPlayingUI(true); saveState(); });
+function toggle() { if (!audio.src) return; audio.paused ? audio.play().catch(() => { }) : audio.pause(); }
+audio.addEventListener('play', () => { state.failStreak = 0; state._playStartedAt = Date.now(); setPlayingUI(true); saveState(); });
 audio.addEventListener('pause', () => { setPlayingUI(false); saveState(); });
+/* 地址拿到了、实际却拉不下来（404 / 代理 502 / 版权抽检）：
+   跟取不到地址一样往后跳，别让界面显示「播放中」却一点声音都没有。
+   但要区分两种情况：已经正常播了一会儿再断，是网络抖动，先原地重试一次；
+   一开播就失败，才是真的取不到。 */
+audio.addEventListener('error', () => {
+  if (!audio.src) return;
+  if (audio.error && audio.error.code === 1) return;            // ABORTED：切歌/换源时的正常中断
+  if (!audio.error) return;
+  if (state._curSrc && audio.src !== state._curSrc) return;      // 迟到的旧地址报错，别误跳新歌
+  const s = state.queue[state.index];
+  if (!s) return;
+  const playedLong = state._playStartedAt && Date.now() - state._playStartedAt > 4000;
+  if (playedLong && !s._retried) {
+    // 播了一阵才断：多数是地址过期或网络抖了一下。重取一次地址，别急着判死
+    s._retried = true;
+    toast(`「${s.name}」中断，正在重连…`);
+    return playIndex(state.index);
+  }
+  skipUnplayable(s, state.index, '音源加载失败');
+});
 audio.addEventListener('ended', () => {
-  if (state.mode === 'one') { audio.currentTime = 0; audio.play(); return; }
+  if (state.mode === 'one') { audio.currentTime = 0; audio.play().catch(() => { }); return; }
   if (state.mode === 'shuffle' && state.queue.length) return playIndex(Math.floor(Math.random() * state.queue.length));
   playIndex(state.index + 1);
 });

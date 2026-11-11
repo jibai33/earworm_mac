@@ -1170,3 +1170,35 @@ body.is-scrolled .topbar {
 @media (prefers-reduced-motion: reduce) {
   .unified-pill, .acc-card { transition: none !important; }
 }
+
+/* ═══ 取不到地址：列表灰化 + 轻提示 ═══
+   跳过的歌留在原位（否则用户不知道少了什么），只是安静下来。
+   不做整体 opacity，封面和标题都要还能读，只压一档、加删除线。 */
+/* 只压封面和标题，标签保持全亮——整体 opacity 会把「不可播」一起压暗 */
+.song.is-dead img { opacity: .4; filter: grayscale(.45); }
+.song.is-dead .name { color: var(--txt-dim); text-decoration: line-through; text-decoration-thickness: 1px; }
+.song.is-dead .artist { color: rgba(143, 148, 142, .75); }
+.song.is-dead:hover img { opacity: .62; }
+.dead-tag {
+  display: inline-block; margin-left: 7px; padding: 1px 5px; font-size: 10px; line-height: 1.5;
+  border: 1px solid rgba(192, 57, 43, .55); border-radius: 4px;
+  color: #e09a90; vertical-align: 1px; text-decoration: none;
+}
+
+/* 轻提示：贴在播放条上方，说一句话就走，不抢焦点
+   z-index 76：压在播放队列抽屉(70)之上（看队列时也会跳歌），但在登录弹窗(80)之下 */
+.ew-toast {
+  position: fixed; left: 50%; bottom: 98px; z-index: 76;
+  transform: translate(-50%, 10px);
+  max-width: min(520px, calc(100vw - 40px));
+  padding: 9px 16px; border-radius: 999px;
+  background: rgba(20, 24, 30, .94); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  border: 1px solid rgba(255, 255, 255, .16); box-shadow: 0 14px 40px rgba(0, 0, 0, .55);
+  color: #efe9dd; font-size: 13px; line-height: 1.45; text-align: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.ew-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.ew-toast.warn { border-color: rgba(192, 57, 43, .5); color: #f0c3bb; }
+@media (max-width: 899px) { .ew-toast { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 132px); } }
+@media (prefers-reduced-motion: reduce) { .ew-toast { transition: none !important; } }
