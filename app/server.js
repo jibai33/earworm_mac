@@ -321,6 +321,32 @@ async function tasteRecommendations(p, variant = 0) {
   return data;
 }
 
+/* ---------- 氛围背景：真实天气代理（默认关闭，见 /api/ambient/weather） ---------- */
+const weatherGeoCache = new Map();    // city -> { name, lat, lon } | null
+const weatherCache = new Map();       // lat,lon -> { ts, data }
+const WEATHER_TTL = 30 * 60 * 1000;
+
+function wmoToWeather(code, temp, wind) {
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snow';
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code)) {
+    return (typeof temp === 'number' && temp <= 1) ? 'snow' : 'rain';
+  }
+  if ([45, 48].includes(code)) return 'fog';
+  if (typeof wind === 'number' && wind >= 28) return 'wind';
+  if (code === 0 || code === 1) return 'clear';
+  return 'cloud';
+}
+function fetchTimeout(url, ms) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), ms);
+  return fetch(url, { signal: ac.signal, headers: { Accept: 'application/json' } })
+    .then(async (r) => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .finally(() => clearTimeout(timer));
+}
+
 /* ---------- 路由 ---------- */
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -724,6 +750,47 @@ const server = http.createServer(async (req, res) => {
       }
       // 通用透传（QQ m4a、网易云外链等）
       return proxyAudio(res, au, range);
+    }
+
+    // ==================== 氛围背景 · 真实天气（可选，默认关闭） ====================
+    // 前端不直连外部，只有用户在设置里开启并填城市才会走到这里。
+    // 只取 WMO 天气码 / 气温 / 风速 / 昼夜，不上传任何本机信息；城市坐标与结果各缓存 30 分钟。
+    if (pn === '/api/ambient/weather') {
+      const city = String(q.get('city') || '').trim().slice(0, 40);
+      if (!city) return sendJSON(res, { ok: false, reason: '未设置城市' });
+      try {
+        let geo = weatherGeoCache.get(city);
+        if (geo === undefined) {
+          const g = await fetchTimeout(
+            'https://geocoding-api.open-meteo.com/v1/search?count=1&language=zh&format=json&name=' + encodeURIComponent(city), 4500);
+          const hit = g && g.results && g.results[0];
+          geo = hit ? { name: hit.name, lat: hit.latitude, lon: hit.longitude } : null;
+          weatherGeoCache.set(city, geo);
+        }
+        if (!geo) return sendJSON(res, { ok: false, reason: '没找到这个城市' });
+
+        const ck = Number(geo.lat).toFixed(2) + ',' + Number(geo.lon).toFixed(2);
+        let hit = weatherCache.get(ck);
+        if (!hit || Date.now() - hit.ts > WEATHER_TTL) {
+          const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + geo.lat
+            + '&longitude=' + geo.lon
+            + '&current=temperature_2m,weather_code,wind_speed_10m,is_day&timezone=auto';
+          const d = await fetchTimeout(url, 4500);
+          const c = (d && d.current) || {};
+          hit = {
+            ts: Date.now(),
+            data: {
+              ok: true, city: geo.name, source: 'open-meteo',
+              weather: wmoToWeather(c.weather_code, c.temperature_2m, c.wind_speed_10m),
+              code: c.weather_code, temp: c.temperature_2m, isDay: c.is_day === 1,
+            },
+          };
+          weatherCache.set(ck, hit);
+        }
+        return sendJSON(res, hit.data);
+      } catch (e) {
+        return sendJSON(res, { ok: false, reason: '天气服务暂不可用：' + ((e && e.message) || 'timeout') });
+      }
     }
 
     // ==================== 听感画像 / 个性化推荐（Web + macOS + iOS 共用契约） ====================

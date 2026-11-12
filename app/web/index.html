@@ -150,6 +150,7 @@
 <link rel="stylesheet" href="./yearbook.css">
 <link rel="stylesheet" href="./home-extra.css">
 <link rel="stylesheet" href="./v2.css">
+<link rel="stylesheet" href="./ambient.css">
 </head>
 <body>
 <!-- ══ 开机动画：国风墨染 · 印章浮现 ══
@@ -171,6 +172,8 @@
 <script src="./boot.js"></script>
 
 <canvas id="ambient" aria-hidden="true"></canvas>
+<!-- 像素氛围层：低对比光尘 / 雨丝 / 雪块，随天气与听感节奏缓慢变化 -->
+<canvas id="px-drift" aria-hidden="true"></canvas>
 
 <!-- ══ 顶栏（全局）：品牌 + 悬浮搜索 + 用户 ══ -->
 <header class="topbar" id="topbar">
@@ -185,6 +188,7 @@
   </div>
 
   <div class="topbar-right">
+    <button id="amb-chip" class="amb-chip" type="button" title="氛围背景设置">◌ 自动</button>
     <button id="account-btn" class="source-btn" aria-label="音源连接" title="查看 / 连接各平台音源">
       <span class="acc-glyph">源</span><span class="acc-count" id="account-count">0/4</span>
     </button>
@@ -987,6 +991,66 @@
   <button id="v2-undo-btn" type="button">撤销</button>
 </div>
 
+<!-- v2+：像素氛围背景设置（顶栏徽标 / ⌘K 命令面板均可打开） -->
+<div class="amb-mask" id="amb-mask" hidden>
+  <div class="amb-panel" role="dialog" aria-label="氛围背景设置" aria-modal="true">
+    <div class="amb-head"><span>AMBIENT · 像素氛围</span><button id="amb-close" type="button" aria-label="关闭">✕</button></div>
+    <div class="amb-status" id="amb-status">正在读氛围…</div>
+
+    <div class="amb-group">
+      <div class="amb-label"><span>天气 WEATHER</span><small>默认按本机时段推断 · 不联网</small></div>
+      <div class="amb-opts" id="amb-weather-opts">
+        <button type="button" data-amb-w="auto">自动</button>
+        <button type="button" data-amb-w="clear">晴</button>
+        <button type="button" data-amb-w="cloud">多云</button>
+        <button type="button" data-amb-w="rain">雨</button>
+        <button type="button" data-amb-w="snow">雪</button>
+        <button type="button" data-amb-w="fog">雾</button>
+        <button type="button" data-amb-w="wind">风</button>
+        <button type="button" data-amb-w="night">夜</button>
+      </div>
+    </div>
+
+    <div class="amb-group">
+      <div class="amb-label"><span>心情 MOOD</span><small>从听歌节奏推断，不是情绪识别</small></div>
+      <div class="amb-opts" id="amb-mood-opts">
+        <button type="button" data-amb-m="auto">自动</button>
+        <button type="button" data-amb-m="calm">静</button>
+        <button type="button" data-amb-m="bright">亮</button>
+        <button type="button" data-amb-m="mellow">柔</button>
+        <button type="button" data-amb-m="restless">跳</button>
+      </div>
+    </div>
+
+    <div class="amb-group">
+      <div class="amb-label"><span>强度 INTENSITY</span><small>低对比 · 18fps · 失焦暂停</small></div>
+      <div class="amb-opts" id="amb-level-opts">
+        <button type="button" data-amb-l="off">关</button>
+        <button type="button" data-amb-l="low">轻</button>
+        <button type="button" data-amb-l="normal">标准</button>
+      </div>
+    </div>
+
+    <div class="amb-group amb-real">
+      <label class="amb-switch">
+        <span>用真实天气（需联网 · 默认关闭）</span>
+        <input type="checkbox" id="amb-real">
+      </label>
+      <div class="amb-city-row">
+        <input id="amb-city" type="text" placeholder="城市，如 杭州 / Shanghai" autocomplete="off" spellcheck="false">
+        <button id="amb-city-save" type="button">保存</button>
+      </div>
+      <div class="amb-note" id="amb-real-note">关闭时完全不出网；开启后由本机服务代理请求 Open-Meteo，30 分钟缓存一次。</div>
+    </div>
+
+    <div class="amb-foot">
+      天气默认只看本机时钟，每 15 分钟在符合时段的形态里缓慢轮换；心情看时段、是否在播、切歌节奏与深夜模式。<br>
+      切到深夜自动降密度；开启「减少动态效果」时只留一帧静态画面。所有偏好只存在本机。
+    </div>
+  </div>
+</div>
+
+<script src="./ambient.js"></script>
 <script src="./v2.js"></script>
 <!-- <script src="./muse.js"></script> -->
 <script>

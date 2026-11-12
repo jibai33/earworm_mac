@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════════
+   闻曲 · 像素氛围背景（Ambient Drift）
+   ---------------------------------------------------------------
+   叠在内容之上但用 screen 混合：深底只被提亮一点点，浅色文字几乎不变，
+   所以看起来是「背景里的光尘」而不是「挡在字前面的杂物」。
+   ═══════════════════════════════════════════════════════════════ */
+
+#px-drift {
+  display: block;
+  position: fixed; inset: 0;
+  z-index: 85;                 /* 低于命令面板 92 / 撤销条 88 / 扫描线 9998 */
+  pointer-events: none;
+  mix-blend-mode: screen;
+  image-rendering: pixelated;
+}
+#px-drift[hidden] { display: none !important; }
+
+/* ---------- 顶栏状态徽标：全局可见，不占左栏版面 ---------- */
+.amb-chip {
+  flex: 0 0 auto;
+  min-width: 56px; height: 30px; padding: 0 9px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  background: var(--px-2, #151920);
+  border: 2px solid var(--px-line, #2b323d);
+  color: var(--px-amber, #e6b06a);
+  font-family: var(--pixel-font); font-size: 12px; line-height: 1;
+  cursor: pointer;
+}
+.amb-chip:hover { border-color: var(--px-amber, #e6b06a); color: var(--px-amber-hi, #f6cd93); }
+.amb-chip:focus-visible { outline: 2px solid var(--px-amber, #e6b06a); outline-offset: 2px; }
+
+/* ---------- 设置面板 ---------- */
+.amb-mask[hidden] { display: none !important; }
+.amb-mask {
+  position: fixed; inset: 0; z-index: 94;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(4, 5, 7, .82);
+}
+.amb-panel {
+  width: min(520px, 100%); max-height: 84vh; overflow-y: auto;
+  background: var(--px-1, #0e1014);
+  border: 2px solid var(--px-amber, #e6b06a);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .8);
+  padding: 16px 18px 18px;
+}
+.amb-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 10px; margin-bottom: 10px;
+  border-bottom: 2px solid var(--px-line, #2b323d);
+  color: var(--px-amber, #e6b06a); font-size: 12px;
+}
+.amb-head button {
+  width: 26px; height: 26px;
+  background: var(--px-2, #151920); color: var(--px-txt, #eae4d6);
+  border: 2px solid var(--px-line, #2b323d); cursor: pointer;
+  font-family: var(--pixel-font); font-size: 12px;
+}
+.amb-head button:hover { border-color: var(--px-amber, #e6b06a); }
+.amb-status {
+  padding: 8px 10px; margin-bottom: 14px;
+  background: var(--px-2, #151920); border-left: 3px solid var(--px-amber, #e6b06a);
+  color: var(--px-dim, #b0b9c2); font-size: 12px; line-height: 1.7;
+}
+.amb-group { margin-bottom: 14px; }
+.amb-label {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 7px; color: var(--px-txt, #eae4d6);
+}
+.amb-label small { color: var(--px-dim, #b0b9c2); font-size: 12px; opacity: .8; }
+.amb-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.amb-opts button {
+  min-width: 52px; padding: 6px 9px;
+  background: var(--px-2, #151920); color: var(--px-dim, #b0b9c2);
+  border: 2px solid var(--px-line, #2b323d);
+  font-family: var(--pixel-font); font-size: 12px; cursor: pointer;
+}
+.amb-opts button:hover { color: var(--px-txt, #eae4d6); border-color: var(--px-dim, #b0b9c2); }
+.amb-opts button.is-on {
+  background: var(--px-amber, #e6b06a); border-color: var(--px-amber, #e6b06a);
+  color: var(--px-0, #08090c);
+}
+.amb-group.amb-real {
+  padding-top: 12px; border-top: 2px dashed var(--px-line, #2b323d);
+}
+.amb-switch {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  color: var(--px-txt, #eae4d6); font-size: 12px; cursor: pointer;
+}
+.amb-switch input { width: 16px; height: 16px; accent-color: var(--px-amber, #e6b06a); cursor: pointer; }
+.amb-city-row { display: flex; gap: 6px; margin-top: 9px; }
+.amb-city-row input {
+  flex: 1; min-width: 0; padding: 7px 9px;
+  background: var(--px-2, #151920); color: var(--px-txt, #eae4d6);
+  border: 2px solid var(--px-line, #2b323d);
+  font-family: var(--pixel-font); font-size: 12px;
+}
+.amb-city-row input:focus { outline: none; border-color: var(--px-amber, #e6b06a); }
+.amb-city-row button {
+  padding: 7px 12px; background: var(--px-2, #151920);
+  color: var(--px-amber, #e6b06a); border: 2px solid var(--px-line, #2b323d);
+  font-family: var(--pixel-font); font-size: 12px; cursor: pointer;
+}
+.amb-city-row button:hover { border-color: var(--px-amber, #e6b06a); }
+.amb-note {
+  margin-top: 9px; color: var(--px-dim, #b0b9c2);
+  font-size: 12px; line-height: 1.7; opacity: .85;
+}
+.amb-foot {
+  margin-top: 4px; padding-top: 10px; border-top: 2px solid var(--px-line, #2b323d);
+  color: var(--px-dim, #b0b9c2); font-size: 12px; line-height: 1.8; opacity: .8;
+}
+
+@media (max-width: 899px) {
+  .amb-mask { padding: 12px; }
+  .amb-panel { padding: 12px; max-height: 90vh; }
+  .amb-chip { min-width: 44px; padding: 0 6px; }
+}

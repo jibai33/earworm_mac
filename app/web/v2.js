@@ -332,6 +332,8 @@
       { t: '回到首页', g: '⌂', k: '⌘1', run: () => EW().go('page-discover') },
       { t: '打开曲库', g: '▣', run: () => EW().go('page-mine') },
       { t: '播放 / 暂停', g: '❚❚', k: 'Space', run: () => { const t = $('toggle'); if (t) t.click(); } },
+      // 氛围背景（脚本未加载时自动缺席，不影响原有 13 条命令）
+      ...(window.Ambient && Ambient.commands ? Ambient.commands() : []),
     ];
   }
 

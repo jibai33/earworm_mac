@@ -225,7 +225,9 @@ function drawAmbient(t) {
   }
   requestAnimationFrame(drawAmbient);
 }
-requestAnimationFrame(drawAmbient);
+// 像素皮肤里 #ambient 被 pixel.css 隐藏，就别再空转 60fps 去算 46 个
+// 径向渐变了；氛围改由 ambient.js 的 18fps 像素层承担。
+if (getComputedStyle(canvas).display !== 'none') requestAnimationFrame(drawAmbient);
 
 /* ---------- 墨染场：封面取色 → 水墨晕染粒子 ---------- */
 const inkStage = $('stage');
