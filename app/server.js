@@ -46,6 +46,8 @@ const night = require('./modules/night.js');
 const crate = require('./modules/crate.js');
 const wall = require('./modules/wall.js');
 const yearbook = require('./modules/yearbook.js');
+const replay = require('./modules/replay.js');
+const { timeOf } = require('./modules/event-time.js');
 const { createUnified } = require('./modules/unified.js');
 const { TrackDecryptor } = require('./modules/qishui-audio-decryptor/track-decryptor');
 const qishuiAudioDecryptor = new TrackDecryptor();
@@ -308,6 +310,8 @@ const unified = createUnified({
 });
 
 const tasteCache = new Map(); // syncKey -> { updatedAt, ts, data }
+// 今日一曲：同一天、同一画像只检索一次曲库；「已听」每次仍按事件流实时算
+const dailyCache = new Map(); // key:day -> { ts, song, reason, line }
 async function tasteRecommendations(p, variant = 0) {
   const ck = p.key + ':' + variant;
   const hit = tasteCache.get(ck);
@@ -744,6 +748,14 @@ const server = http.createServer(async (req, res) => {
         // 首次启动时客户端可能还没有同步码：墙面与小报按「空库」回，不要甩 400
         if (action === 'wall') return sendJSON(res, wall.buildWall({ events: [], day: q.get('day') }));
         if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: [], period: q.get('period') }));
+        // v2 回看数据面：没有同步码时按「空库」回，首页给动作而不是甩 400
+        if (action === 'heat') return sendJSON(res, replay.buildHeat({ events: [], days: q.get('days') }));
+        if (action === 'replay') return sendJSON(res, replay.buildReplay({ events: [], scope: q.get('scope') }));
+        if (action === 'lastyear') return sendJSON(res, replay.buildLastYear({ events: [] }));
+        if (action === 'daily') return sendJSON(res, {
+          ok: true, empty: true, reason: '还没有同步码', line: '今天先挂上第一张',
+          note: '去听一首，明天这里就会有属于你的一曲。',
+        });
         return sendJSON(res, { ok: false, error: '同步码无效（应为 EW-XXXX-XXXX-XXXX）' }, 400);
       }
       const p = tasteProfile.rawProfile(key);
@@ -788,6 +800,48 @@ const server = http.createServer(async (req, res) => {
       // 墙按天取（?day=YYYY-MM-DD，省略是今天）；年鉴按尺度取（?period=year|month|week）
       if (action === 'wall') return sendJSON(res, wall.buildWall({ events: p.events, day: q.get('day') }));
       if (action === 'yearbook') return sendJSON(res, yearbook.buildYearbook({ events: p.events, period: q.get('period') }));
+
+      // ---------- v2 回听闭环：所有「回看」动作只有一个出口：加入播放队列 ----------
+      // scope=day(某天墙) | period(年鉴/月鉴/周鉴那一期) | lastyear(去年今天)
+      if (action === 'replay') {
+        return sendJSON(res, replay.buildReplay({
+          events: p.events,
+          scope: q.get('scope') || 'day',
+          day: q.get('day'),
+          period: q.get('period') || 'month',
+          offset: Number(q.get('offset')) || -1,
+          source: q.get('source') || '',
+          limit: Number(q.get('limit')) || 60,
+        }));
+      }
+      if (action === 'heat') return sendJSON(res, replay.buildHeat({ events: p.events, days: q.get('days') }));
+      if (action === 'lastyear') return sendJSON(res, replay.buildLastYear({ events: p.events, offset: Number(q.get('offset')) || -1 }));
+      if (action === 'daily') {
+        const ck = `${key}:${new Date().toDateString()}`;
+        let hit = dailyCache.get(ck);
+        if (!hit) {
+          const d = await replay.pickDaily({ events: p.events, searchFn: tasteSearch });
+          if (d.empty) return sendJSON(res, d);
+          hit = { ts: Date.now(), song: d.song, reason: d.reason, line: d.line };
+          dailyCache.set(ck, hit);
+          if (dailyCache.size > 64) dailyCache.delete(dailyCache.keys().next().value);
+        }
+        // 盖章不落库：当天事件流里真播过这首，就是已听
+        const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+        const from = d0.getTime(), to = from + 24 * 60 * 60 * 1000;
+        const k = replay.songKey(hit.song);
+        const heard = (p.events || []).some((e) => {
+          if (!e || !['play', 'complete'].includes(e.type)) return false;
+          const ts = timeOf(e);
+          return ts >= from && ts < to && replay.songKey(e.song) === k;
+        });
+        return sendJSON(res, {
+          ok: true, empty: false,
+          day: `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`,
+          song: hit.song, reason: hit.reason, line: hit.line, heard,
+          note: '每天 00:00 换一张 · 播过盖章 · 只读本机记录',
+        });
+      }
       if (action === 'settings' && req.method === 'POST') return sendJSON(res, tasteProfile.setSettings(key, body.settings || body));
       if (action === 'feedback' && req.method === 'POST') return sendJSON(res, tasteProfile.addFeedback(key, body));
       if (action === 'clear' && req.method === 'POST') return sendJSON(res, tasteProfile.clearProfile(key, { keepSettings: body.keepSettings !== false }));

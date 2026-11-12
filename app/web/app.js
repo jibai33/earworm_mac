@@ -46,6 +46,9 @@ const state = {
   unifiedPage: 0, unifiedSources: [], accountStatus: null,
 };
 const PROVIDER_LABEL = { netease: '云村', qq: 'QQ 音乐', qishui: '汽水', xy: '小宇宙', all: '全部音源' };
+/* v2：成就解锁时菜单栏图标闪一下；drawSpectrum 在这一刻把 8 段推满 */
+let trayFlashUntil = 0;
+let queueGen = 0;
 
 /* ---------- 工具 ---------- */
 const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -89,6 +92,7 @@ window.EW = {
   play(songs, index) {
     const list = (songs || []).filter(Boolean);
     if (!list.length) return;
+    queueGen += 1;
     state.queue = list.slice();
     renderQueue();
     playIndex(Math.max(0, Math.min(list.length - 1, index || 0)));
@@ -99,7 +103,64 @@ window.EW = {
   current: () => state.queue[state.index] || null,
   // 让唱片店的 8-bit 合成也走同一个 analyser：菜单栏频谱才不会是死的
   audio: () => { ensureAudioGraph(); return audioCtx ? { ctx: audioCtx, analyser } : null; },
+
+  /* ---------- v2 回听闭环：所有「回看」动作的唯一出口 ----------
+     墙 / 年鉴 / 去年今天 / 今日一曲都走这里，队列里带来源角标，
+     取不到地址沿用已有的自动跳过，不打断回放。 */
+  replay: (params, label) => replayTracks(params, label),
+  queue: () => state.queue.slice(),
+  toast: (msg, warn) => toast(msg, warn),
+  flashTray: (ms) => { trayFlashUntil = Date.now() + (ms || 900); },
+  queueGen: () => queueGen,
 };
+
+/* 事件流里只存了歌曲的基本信息（QQ 的 mid 之类播放字段不落库）。
+   先按原样开播，再后台把缺字段的条目悄悄换成可播版本——不打断正在听的那首。 */
+async function resolveReplayTracks(list, gen) {
+  const norm = (v) => String(v || '').toLowerCase().replace(/[\s·・（）()「」『』\[\]-]/g, '');
+  const same = (a, b) => norm(a.name) === norm(b.name);
+  const need = (t) => !t.id || (t.provider === 'qq' && !t.mid) || (t.provider === 'xy' && !t.epid && t.isPodcast);
+  const jobs = list.map((t, i) => ({ t, i })).filter(({ t }) => need(t));
+  for (let k = 0; k < jobs.length; k += 4) {
+    if (gen !== queueGen) return;
+    await Promise.all(jobs.slice(k, k + 4).map(async ({ t, i }) => {
+      try {
+        const kw = `${t.name} ${t.artist || ''}`.trim();
+        const r = await api(`/api/unified/search?keywords=${encodeURIComponent(kw)}&limit=6`);
+        const items = (r && r.songs) || [];
+        const pick = items.find((s) => same(s, t) && String(s.artist || '').includes(String(t.artist || '').split(/[\/,、&]/)[0]))
+          || items.find((s) => same(s, t)) || items[0];
+        if (!pick || gen !== queueGen) return;
+        const cur = state.queue[i];
+        if (!cur || !same(cur, t)) return;
+        state.queue[i] = Object.assign({}, pick, {
+          ewSource: cur.ewSource, plays: cur.plays, ewReplay: true,
+        });
+      } catch { /* 补不到就留着原记录，播放失败会自动跳下一首 */ }
+    }));
+    if (gen !== queueGen) return;
+    renderQueue();
+  }
+}
+
+async function replayTracks(params, label) {
+  const key = encodeURIComponent((window.Taste && Taste.getSyncKey && Taste.getSyncKey()) || '');
+  const qs = new URLSearchParams(params || {}).toString();
+  let r;
+  try { r = await api(`/api/taste/replay?syncKey=${key}&${qs}`); }
+  catch (e) { toast('回听没取到：' + (e && e.message ? e.message : '服务不可用'), true); return null; }
+  if (!r || !r.tracks || !r.tracks.length) {
+    toast('这段时间还没有听歌记录 · 先去听一首');
+    return r;
+  }
+  const list = r.tracks.map((t) => Object.assign({}, t, { ewReplay: true }));
+  window.EW.play(list, 0);
+  const gen = queueGen;
+  toast(`${label || '那段时间'} · ${list.length} 首已加入队列`);
+  document.dispatchEvent(new CustomEvent('ew:replay', { detail: { label, count: list.length } }));
+  resolveReplayTracks(list, gen);
+  return r;
+}
 
 /* ---------- 页面切换（桌面顶栏 + 移动 tabbar） ---------- */
 function go(page) {
@@ -353,7 +414,10 @@ function drawSpectrum() {
   spCtx.clearRect(0, 0, spCanvas.width, spCanvas.height);
   // 唱片店的 8-bit 片段也接到同一个 analyser 上，播放时频谱照样要动
   const live = state.playing || !!window.__ewExternalAudio;
-  if (!analyser || !live) { state.level = 0; publishMenuBands(false); return; }
+  // 成就解锁：菜单栏图标闪一下（暂停时也要能闪），不必进页面才知道
+  const flashing = Date.now() < trayFlashUntil;
+  if (flashing) window.__ewSpectrum = new Array(MENU_BANDS).fill(1);
+  if (!analyser || !live) { state.level = 0; if (!flashing) publishMenuBands(false); return; }
   analyser.getByteFrequencyData(freqData);
   const bars = 48, step = Math.floor(freqData.length / bars);
   const w = spCanvas.width / bars;
@@ -371,7 +435,7 @@ function drawSpectrum() {
     spCtx.fillRect(i * w + w * .18, spCanvas.height - h, w * .64, h);
   }
   readMenuBands();
-  publishMenuBands(true);
+  if (!flashing) publishMenuBands(true);
   lowAvg = lowAvg * .8 + (sum / bars) * .2;
   state.level = Math.min(1.4, lowAvg * 2.2);
   document.documentElement.style.setProperty('--beat', state.level.toFixed(3));
@@ -966,9 +1030,20 @@ function nextAfterFail(from) {
   return (from + 1) % n;
 }
 
+/* 不可播要标清原因：VIP / 版权 / 未登录 / 网络，跳过才不像坏了 */
+function classifyWhy(raw) {
+  const t = String(raw || '');
+  if (/vip|会员|付费/i.test(t)) return 'VIP 限制';
+  if (/版权|下架|无版权|地区|不可播/i.test(t)) return '版权下架';
+  if (/登录|cookie|凭据|unauthorized|401/i.test(t)) return '音源未登录';
+  if (/超时|timeout|网络|加载失败|502|503|504|代理/i.test(t)) return '音源加载失败';
+  return t ? t.replace(/[（(].*?[）)]/g, '').slice(0, 12) : '不可播';
+}
+
 function skipUnplayable(s, from, why) {
   if (!s) return setPlayingUI(false);
   deadSet.add(deadKey(s));
+  s.ewWhy = classifyWhy(why);
   state.failStreak = (state.failStreak || 0) + 1;
   renderQueue();
 
@@ -989,7 +1064,7 @@ function skipUnplayable(s, from, why) {
   }
   // 连着跳时只报一句「连跳 N 首」，别让前一条提示被下一条顶掉
   if (state.failStreak > 1) toast(`连跳 ${state.failStreak} 首不可播 · 最近「${s.name}」`);
-  else toast(`跳过「${s.name}」· ${why}`);
+  else toast(`跳过「${s.name}」· ${s.ewWhy}`);
   playIndex(nextAfterFail(from));
 }
 
@@ -1004,17 +1079,20 @@ function songEl(s, i, idxLabel) {
     ? `<span class="src-tag">${SRC_LABEL[s.provider] || s.provider}${s.isPodcast ? ' · 播客' : ''}</span>` : '';
   const alt = (s.alsoOn || []).length
     ? `<span class="src-tag alt">另见 ${s.alsoOn.map(p => SRC_LABEL[p] || p).join(' / ')}</span>` : '';
+  // v2：回放队列里每条都带来源角标，「这段时间从哪来」一眼可追溯
+  const from = s.ewSource ? `<span class="src-tag from">${escapeHtml(s.ewSource)}${s.plays > 1 ? ' ×' + s.plays : ''}</span>` : '';
   el.innerHTML = `
     <div class="song-idx">${idxLabel != null ? idxLabel : ''}</div>
     <img src="${coverUrl(s.cover) || 'icon.svg'}" loading="lazy" alt="">
     <div class="meta">
       <div class="name">${escapeHtml(s.name)}</div>
-      <div class="artist">${escapeHtml(s.artist)}${s.fee === 1 ? ' · VIP' : ''}${tag}${alt}</div>
+      <div class="artist">${escapeHtml(s.artist)}${s.fee === 1 ? ' · VIP' : ''}${tag}${alt}${from}</div>
     </div>`;
-  // 播不出来的歌留在列表里，但灰掉并标出来——用户得知道刚才跳过的是哪首
+  // 播不出来的歌留在列表里，但说清原因——「灰掉」会让人以为应用坏了
   if (isDead(s)) {
     el.classList.add('is-dead');
-    el.querySelector('.artist').insertAdjacentHTML('beforeend', '<span class="dead-tag">不可播</span>');
+    el.querySelector('.artist').insertAdjacentHTML('beforeend',
+      `<span class="dead-tag">${escapeHtml(s.ewWhy || '不可播')}</span>`);
   }
   el.addEventListener('click', () => {
     // 手动点等于「再试一次」：清掉跳过记录，允许重新换源
@@ -1121,8 +1199,8 @@ async function playIndex(i) {
       } catch { /* 换源失败则往下跳，不停在这一首 */ }
     }
     // 换源也不成：直接放下一首（用户要求：取不到地址就往后放）
-    const why = String((err && err.message) || '取不到播放地址').replace(/（.*?）/g, '').slice(0, 18);
-    skipUnplayable(s, i, why);
+    // 保留完整错误信息，classifyWhy 才能从「VIP / 版权 / 需登录」里分出原因
+    skipUnplayable(s, i, String((err && err.message) || '取不到播放地址'));
   }
 }
 function setPlayingUI(p) {

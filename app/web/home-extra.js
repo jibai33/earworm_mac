@@ -52,8 +52,11 @@
       return;
     }
     strip.classList.remove('is-empty');
-    // 整面墙缩略：有封面就贴封面，没挂满的位置画成钉子
-    const slots = (d.slots && d.slots.length ? d.slots : new Array(d.capacity || CAP).fill(null)).slice(0, CAP);
+    // 首页只挂 8 格（两行）：v2 回看三卡等宽后，24 格会把整行撑到半屏高。
+    // 整面墙去唱片墙页看，这里只是「今天挂了什么」的一眼概览。
+    const VIS = 8;
+    const all = (d.slots && d.slots.length ? d.slots : new Array(d.capacity || CAP).fill(null));
+    const slots = all.slice(0, VIS);
     strip.innerHTML = '';
     slots.forEach((s, i) => {
       if (!s) {
@@ -78,8 +81,8 @@
     });
 
     const note = $('hw-note');
-    note.textContent = d.hasMore
-      ? `今天 ${d.total} 首 · 墙满 ${d.capacity} 格`
+    note.textContent = d.total > VIS
+      ? `今天 ${d.total} 首 · 首页先看 ${VIS} 张`
       : `今天挂上 ${d.hung} 张`;
   }
 
@@ -215,8 +218,13 @@
       fetchAll(true);
     }, 45000);
 
+    // v2：唱片店解锁时左栏进度立刻跟上，不必等下一次 45s 静默刷新
+    document.addEventListener('ew:crate-unlock', () => fetchAll(true));
+
     fetchAll(false);
   }
+
+  window.HomeExtra = { refresh: () => fetchAll(true), debug: () => ({ wall: !!state.wall }) };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
   else bind();

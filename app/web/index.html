@@ -149,6 +149,7 @@
 <link rel="stylesheet" href="./wall.css">
 <link rel="stylesheet" href="./yearbook.css">
 <link rel="stylesheet" href="./home-extra.css">
+<link rel="stylesheet" href="./v2.css">
 </head>
 <body>
 <!-- ══ 开机动画：国风墨染 · 印章浮现 ══
@@ -250,6 +251,7 @@
     </div>
     <div class="sp-shortcuts" aria-label="常用快捷键">
       <div class="sp-shortcuts-title">QUICK KEYS · 快捷操作</div>
+      <div class="sp-key"><kbd>Cmd K</kbd><span>命令面板</span></div>
       <div class="sp-key"><kbd>Cmd F</kbd><span>搜曲</span></div>
       <div class="sp-key"><kbd>Cmd U</kbd><span>播放队列</span></div>
       <div class="sp-key"><kbd>Cmd ⇧ M</kbd><span>迷你播放器</span></div>
@@ -270,7 +272,7 @@
           <path fill="currentColor" d="M7 0h2v1H7zM5 1h4v1H5zM4 2h5v1H4zM3 3h4v1H3zM2 4h4v1H2zM2 5h3v1H2zM1 6h3v1H1zM1 7h3v1H1zM1 8h3v1H1zM1 9h3v1H1zM2 10h3v1H2zM2 11h4v1H2zM3 12h4v1H3zM4 13h4v1H4zM5 14h5v1H5zM7 15h3v1H7zM8 3h2v1H8zM9 5h3v1H9zM11 7h4v1H11zM9 9h3v1H9zM8 11h2v1H8z"/>
         </svg>
       </span>
-      <span class="spn-txt"><b>夜间频道</b><i>0–5 点 · 只放慢的</i></span>
+      <span class="spn-txt"><b>深夜频道</b><i>随时可切 · 只放慢的</i></span>
       <span class="spn-arrow">›</span>
     </button>
   </aside>
@@ -283,6 +285,22 @@
       <span class="ns-sub">这个点你也醒着 —— 不推热歌，不猜心情</span>
       <button class="ns-go" id="night-strip-go" type="button">进入深夜频道</button>
     </div>
+    <!-- v2 ①：今日一曲 —— 每天只出一次，播过盖章；首周没数据时给动作，不留空卡 -->
+    <section class="b-card v2-daily" id="v2-daily">
+      <div class="v2-daily-cover" id="v2-daily-cover" aria-hidden="true"></div>
+      <div class="v2-daily-body">
+        <div class="b-kicker">TODAY'S ONE · 今日一曲 <span class="k-right" id="v2-daily-date">每天 00:00 换一张</span></div>
+        <div class="v2-daily-title">今日一曲</div>
+        <div class="v2-daily-song" id="v2-daily-song">正在挑今天这一张……</div>
+        <div class="v2-daily-line" id="v2-daily-line">一首歌，一天一次。</div>
+        <div class="v2-daily-actions">
+          <button class="v2-btn accent" id="v2-daily-play" type="button">▶ 播放今日</button>
+          <button class="v2-btn ghost" id="v2-daily-surprise" type="button">✦ 给我一首意外的</button>
+        </div>
+      </div>
+      <div class="v2-daily-stamp" id="v2-daily-stamp" hidden>已听</div>
+    </section>
+
     <!-- 继续听 / 开始听歌 -->
     <div class="b-row">
     <section class="b-card bc-continue" id="bento-continue" role="button" tabindex="0">
@@ -343,14 +361,14 @@
     </section>
     </div>
 
-    <!-- 听感层：唱片墙预览 + 年鉴摘要，都是真实记录 -->
-    <div class="b-row3">
+    <!-- v2 ② 回看三卡：每张都带一个「加入队列」的动作，不再只是只读展柜 -->
+    <div class="b-row3" id="v2-rewind-row">
       <section class="b-card home-wall" id="home-wall-card" role="button" tabindex="0">
         <div class="b-kicker">THE WALL · 唱片墙 <span class="k-right" id="hw-meta">0 / 24</span></div>
         <div class="hw-strip" id="hw-strip"></div>
         <div class="hw-foot">
           <span class="hw-note" id="hw-note">听一首，墙上就多一枚钉子</span>
-          <span class="hw-go">看整面墙 ›</span>
+          <button class="hw-action" id="hw-replay" type="button">重播这一天 →</button>
         </div>
       </section>
 
@@ -362,10 +380,27 @@
         <div class="hy-chart" id="hy-chart"></div>
         <div class="hw-foot">
           <span class="hw-note" id="hy-note">只读本机记录 · 不出网</span>
-          <span class="hw-go">读小报 ›</span>
+          <button class="hw-action" id="hy-replay" type="button">做成歌单 →</button>
+        </div>
+      </section>
+
+      <section class="b-card home-lastyear" id="home-ly-card" hidden>
+        <div class="b-kicker">ON THIS DAY · 去年今天 <span class="k-right" id="hly-date"></span></div>
+        <div class="hly-covers" id="hly-covers"></div>
+        <div class="hly-line" id="hly-line"></div>
+        <div class="hw-foot">
+          <span class="hw-note">只读本机记录 · 不出网</span>
+          <button class="hw-action" id="hly-replay" type="button">再听那天 →</button>
         </div>
       </section>
     </div>
+
+    <!-- v2 ② 30 天热度条：点方块跳到那天的墙 -->
+    <section class="b-card v2-heat" id="v2-heat">
+      <div class="b-kicker">LAST 30 DAYS · 最近 30 天 <span class="k-right">越亮 = 听得越多</span></div>
+      <div class="v2-heat-grid" id="v2-heat-grid"></div>
+      <div class="v2-heat-foot" id="v2-heat-foot">点方块跳到那天的墙 · 记录保留一年</div>
+    </section>
 
     <!-- 为你推荐 -->
     <section class="b-card bc-rail" id="daily-rail-section" hidden>
@@ -414,6 +449,15 @@
       <span class="night-hint" id="night-hint">绕过听感画像 · 一次</span>
       <button id="night-refresh" class="night-btn ghost" type="button">再换一批</button>
       <button id="night-exit" class="night-link" type="button">今晚不熬夜</button>
+    </div>
+
+    <!-- v2 ④：主动权交回用户——自动接管可关，白天也能手动切 -->
+    <div class="v2-night-settings">
+      <label class="v2-switch-row">
+        <span>自动接管（0–5 点）· 换配色前先给可撤销提示</span>
+        <input type="checkbox" id="v2-night-auto" checked>
+      </label>
+      <button class="v2-btn ghost" id="v2-night-toggle" type="button">现在就切到深夜</button>
     </div>
 
     <ol class="night-list" id="night-list"></ol>
@@ -509,6 +553,10 @@
     <button id="wall-next" class="wall-nav" type="button" aria-label="后一天" title="后一天">›</button>
     <button id="wall-today" class="wall-nav wide" type="button">回到今天</button>
   </div>
+  <div class="v2-page-actions">
+    <button class="v2-btn accent" id="wall-replay" type="button">↻ 重播这一天</button>
+    <span class="v2-page-hint">按当天真实顺序加入队列 · 取不到地址自动跳下一首</span>
+  </div>
   <div class="wall-grid" id="wall-grid"></div>
   <p class="wall-foot" id="wall-foot">正在数墙上的钉子……</p>
 </div>
@@ -560,6 +608,7 @@
     </div>
   </article>
   <div class="yb-actions">
+    <button id="yb-replay" class="wall-btn accent" type="button">把这一期做成歌单 →</button>
     <button id="yb-export" class="wall-btn" type="button">撕下来存 PNG</button>
     <span class="yb-hint">存成图片时会重画一遍，默认不带任何账号信息</span>
   </div>
@@ -908,6 +957,27 @@
 <script src="./wall.js"></script>
 <script src="./yearbook.js"></script>
 <script src="./home-extra.js"></script>
+
+<!-- v2 ④：⌘K 像素终端命令面板 -->
+<div class="v2-cmd-mask" id="v2-cmd-mask" hidden>
+  <div class="v2-cmd" role="dialog" aria-label="命令面板" aria-modal="true">
+    <div class="v2-cmd-in">
+      <span class="v2-cmd-prompt">&gt;</span>
+      <input id="v2-cmd-input" type="text" placeholder="输入命令 / 搜歌…" autocomplete="off" spellcheck="false">
+      <span class="v2-cmd-esc">ESC</span>
+    </div>
+    <div class="v2-cmd-list" id="v2-cmd-list"></div>
+    <div class="v2-cmd-foot">↑↓ 选择 · ↵ 执行 · Esc 关闭 · 输入即搜歌</div>
+  </div>
+</div>
+
+<!-- v2 ④：自动切到深夜配色前，给一次可撤销的提示 -->
+<div class="v2-undo" id="v2-undo" hidden>
+  <span id="v2-undo-msg">已切到深夜配色</span>
+  <button id="v2-undo-btn" type="button">撤销</button>
+</div>
+
+<script src="./v2.js"></script>
 <!-- <script src="./muse.js"></script> -->
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');

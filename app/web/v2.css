@@ -1,0 +1,194 @@
+/* ====================================================================
+   闻曲 v2 · 整体设计方案落地样式
+   ------------------------------------------------------------------
+   沿用 pixel.css 的令牌：2px 实线边框 / 3px 3px 0 硬投影 / 零圆角 /
+   12px 像素字 / steps() 阶梯动效。只画新增的结构，不重绘既有组件。
+   三项设计原则：
+     · 首页不铺满：主卡与回看三卡之间留白，一屏尽听保持次级
+     · 所有回看卡片都有一个「加入队列」的动作，不再只是只读展柜
+     · 每个数据面都有加载 / 空 / 错误 / 成功 / 权限五种可见状态
+   ==================================================================== */
+
+/* hidden 必须压过组件自己的 display，否则空卡会莫名其妙露出来 */
+.v2-daily[hidden], .home-lastyear[hidden], .v2-cmd-mask[hidden],
+.v2-undo[hidden], .v2-daily-stamp[hidden] { display: none !important; }
+
+/* ---------- 通用按钮 ---------- */
+.v2-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 36px; padding: 0 14px;
+  font-family: var(--pixel-font, inherit); font-size: 12px; line-height: 1.4;
+  color: var(--px-txt, #eae4d6); background: var(--px-3, #1d232c);
+  border: 2px solid var(--px-line, #2b323d); border-radius: 0;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .85);
+  cursor: pointer; white-space: nowrap;
+  transition: transform .12s steps(2), background .12s;
+}
+.v2-btn:hover { transform: translate(-1px, -1px); border-color: var(--px-amber, #e6b06a); }
+.v2-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0, 0, 0, .85); }
+.v2-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.v2-btn.accent {
+  color: #08090c; background: var(--px-amber, #e6b06a);
+  border-color: var(--px-amber-hi, #f6cd93); font-weight: 700;
+}
+.v2-btn.ghost { background: var(--px-2, #151920); }
+
+/* ---------- ① 今日一曲：首屏主卡 ---------- */
+.v2-daily {
+  position: relative; display: flex; align-items: stretch; gap: 18px;
+  min-height: 188px; padding: 16px;
+  background: var(--px-2, #151920);
+  border: 2px solid var(--px-amber, #e6b06a) !important;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .85);
+  overflow: hidden;
+}
+.v2-daily::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .05) 0 1px, transparent 1px 3px);
+}
+.v2-daily-cover {
+  position: relative; flex: 0 0 156px; width: 156px; align-self: center;
+  aspect-ratio: 1; background: var(--px-3, #1d232c) center/cover no-repeat;
+  border: 2px solid var(--px-line, #2b323d); image-rendering: pixelated;
+}
+.v2-daily-cover::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--px-note) center/56px 56px no-repeat; opacity: .55;
+}
+.v2-daily-cover.has-cover::after { display: none; }
+.v2-daily-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; z-index: 1; }
+.v2-daily .b-kicker { color: var(--px-amber, #e6b06a); }
+.v2-daily-title { font-size: 24px; line-height: 1.3; color: var(--px-txt, #eae4d6); }
+.v2-daily-song {
+  font-size: 12px; color: var(--px-txt, #eae4d6);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.v2-daily-line { font-size: 12px; color: var(--px-dim, #b0b9c2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v2-daily-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 8px; }
+.v2-daily-stamp {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  padding: 6px 10px; font-size: 12px; color: var(--px-green, #8fb8ae);
+  border: 2px solid var(--px-green, #8fb8ae); background: var(--px-2, #151920);
+  transform: rotate(4deg);
+}
+.v2-daily.is-loading .v2-daily-song { color: var(--px-dim, #b0b9c2); }
+.v2-daily.is-empty .v2-daily-cover::after { opacity: .8; }
+
+/* ---------- ② 回看三卡 + 30 天热度条 ---------- */
+.b-row3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.b-row3 > * { min-width: 0; }
+.hw-action {
+  flex-shrink: 0; padding: 3px 8px; font-family: var(--pixel-font, inherit); font-size: 12px;
+  color: var(--px-amber-hi, #f6cd93); background: transparent;
+  border: 2px solid transparent; border-radius: 0; cursor: pointer; white-space: nowrap;
+}
+.hw-action:hover { border-color: var(--px-amber, #e6b06a); background: var(--px-3, #1d232c); }
+.home-wall, .home-gazette, .home-lastyear { cursor: default; }
+.home-wall[role="button"], .home-gazette[role="button"] { cursor: pointer; }
+.home-lastyear {
+  padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.hly-covers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.hly-covers .hly-cover {
+  aspect-ratio: 1; background: var(--px-3, #1d232c) center/cover no-repeat;
+  border: 2px solid var(--px-amber, #e6b06a); image-rendering: pixelated;
+}
+.hly-line { font-size: 12px; color: var(--px-dim, #b0b9c2); line-height: 1.6; }
+
+.v2-heat { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.v2-heat .b-kicker { color: var(--px-amber, #e6b06a); }
+.v2-heat-grid { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 4px; }
+.v2-heat-cell {
+  position: relative; aspect-ratio: 1; padding: 0; border: 2px solid var(--px-line, #2b323d);
+  background: var(--px-3, #1d232c); border-radius: 0; cursor: pointer;
+  transition: transform .1s steps(2);
+}
+.v2-heat-cell:hover { transform: translateY(-2px); border-color: var(--px-amber-hi, #f6cd93); }
+.v2-heat-cell.lv1 { background: #4a3d2c; }
+.v2-heat-cell.lv2 { background: #8a6c43; }
+.v2-heat-cell.lv3 { background: var(--px-amber, #e6b06a); }
+.v2-heat-cell.is-today { border-color: var(--px-amber-hi, #f6cd93); box-shadow: 0 0 0 2px rgba(230, 176, 106, .25); }
+.v2-heat-grid.is-loading .v2-heat-cell { opacity: .4; }
+.v2-heat-foot { font-size: 12px; color: var(--px-dim, #b0b9c2); }
+
+/* ---------- 页面级回听动作 ---------- */
+.v2-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 14px; }
+.v2-page-hint { font-size: 12px; color: var(--px-dim, #b0b9c2); }
+.yb-actions .wall-btn.accent { color: #efe4cd; background: #2a2620; border-color: #2a2620; }
+
+/* ---------- ④ 深夜频道设置行 ---------- */
+.v2-night-settings {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  margin: 0 0 16px; padding: 10px 12px;
+  border: 2px solid var(--px-line, #2b323d); background: rgba(10, 14, 24, .6);
+}
+.v2-switch-row { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--px-txt, #eae4d6); cursor: pointer; }
+.v2-switch-row input { accent-color: var(--px-amber, #e6b06a); width: 16px; height: 16px; }
+
+/* ---------- ④ ⌘K 命令面板：像素终端 ---------- */
+.v2-cmd-mask {
+  position: fixed; inset: 0; z-index: 92; display: flex; align-items: flex-start; justify-content: center;
+  padding: 12vh 20px 20px; background: rgba(4, 5, 8, .78);
+}
+.v2-cmd {
+  width: min(680px, 100%); max-height: 70vh; display: flex; flex-direction: column;
+  background: var(--px-0, #08090c); border: 2px solid var(--px-amber, #e6b06a);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, .8);
+}
+.v2-cmd-in { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 2px solid var(--px-line, #2b323d); }
+.v2-cmd-prompt { font-size: 24px; color: var(--px-amber, #e6b06a); }
+.v2-cmd-in input {
+  flex: 1; min-width: 0; font-family: var(--pixel-font, inherit); font-size: 24px;
+  color: var(--px-txt, #eae4d6); background: transparent; border: 0; outline: none;
+}
+.v2-cmd-in input::placeholder { color: #5b6470; }
+.v2-cmd-esc { font-size: 12px; color: var(--px-dim, #b0b9c2); border: 2px solid var(--px-line, #2b323d); padding: 2px 6px; }
+.v2-cmd-list { flex: 1; min-height: 120px; overflow-y: auto; padding: 8px; }
+.v2-cmd-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px;
+  font-family: var(--pixel-font, inherit); font-size: 12px; text-align: left;
+  color: var(--px-txt, #eae4d6); background: transparent; border: 2px solid transparent;
+  border-radius: 0; cursor: pointer;
+}
+.v2-cmd-row .v2-cmd-key { margin-left: auto; color: var(--px-dim, #b0b9c2); white-space: nowrap; }
+.v2-cmd-row.is-on { background: var(--px-3, #1d232c); border-color: var(--px-amber, #e6b06a); color: var(--px-amber-hi, #f6cd93); }
+.v2-cmd-row .v2-cmd-glyph { width: 18px; flex-shrink: 0; color: var(--px-amber, #e6b06a); }
+.v2-cmd-empty { padding: 18px 10px; font-size: 12px; color: var(--px-dim, #b0b9c2); }
+.v2-cmd-foot { padding: 8px 16px; border-top: 2px solid var(--px-line, #2b323d); font-size: 12px; color: var(--px-dim, #b0b9c2); }
+
+/* ---------- ④ 自动接管的可撤销提示 ---------- */
+.v2-undo {
+  /* 顶部已被 MIDNIGHT 横条和今日一曲卡占满，左下角又压住左栏的深夜频道入口；
+     落在右下角：播放条居中、左栏靠左，这里是唯一稳定空位（音质菜单同位置但 z-index 更低） */
+  position: fixed; right: 24px; bottom: 100px; z-index: 88;
+  display: flex; align-items: center; gap: 16px; padding: 10px 14px;
+  background: var(--px-2, #151920); border: 2px solid var(--px-amber, #e6b06a);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .85); font-size: 12px; color: var(--px-txt, #eae4d6);
+}
+.v2-undo button {
+  font-family: var(--pixel-font, inherit); font-size: 12px; color: var(--px-amber-hi, #f6cd93);
+  background: transparent; border: 2px solid var(--px-line, #2b323d); padding: 3px 10px; cursor: pointer;
+}
+.v2-undo button:hover { border-color: var(--px-amber, #e6b06a); }
+
+/* ---------- 队列来源角标 ---------- */
+.song .src-tag.from { color: var(--px-amber-hi, #f6cd93); border-color: rgba(230, 176, 106, .45); }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1180px) {
+  .b-row3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .home-lastyear { grid-column: span 2; }
+  .hly-covers { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+@media (max-width: 899px) {
+  .v2-daily { flex-direction: column; min-height: 0; }
+  .v2-daily-cover { flex: 0 0 auto; width: 112px; }
+  .b-row3 { grid-template-columns: 1fr !important; }
+  .home-lastyear { grid-column: auto; }
+  .hly-covers { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .v2-heat-grid { gap: 3px; }
+  .v2-cmd-mask { padding: 8vh 12px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v2-btn, .v2-heat-cell { transition: none !important; }
+}

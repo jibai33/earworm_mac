@@ -1,7 +1,7 @@
 {
   "name": "earworm-mac",
   "productName": "闻曲",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "闻曲 Earworm · macOS 桌面版 —— 像素风音乐播放器（Electron 壳 + 本地音源服务）",
   "author": "jibai33",
   "license": "GPL-3.0-only",

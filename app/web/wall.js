@@ -8,7 +8,7 @@
    ==================================================================== */
 (function () {
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, loading: false, day: '' }; // day 为空 = 今天
+  const state = { data: null, loading: false, day: '', pendingDay: null }; // day 为空 = 今天
   const esc = (s) => String(s || '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 
   /** 'YYYY-MM-DD' 前后挪一天，返回同格式 */
@@ -145,15 +145,22 @@
 
     document.addEventListener('ew:page', (e) => {
       if (e.detail !== 'page-wall') return;
-      // 每次进来都回到今天：翻到上周只是浏览，不该记住
-      state.day = '';
+      // 默认每次进来回到今天；热度条点某一天时先带进来，避免被这次重置吃掉
+      if (state.pendingDay != null) { state.day = state.pendingDay; state.pendingDay = null; }
+      else state.day = '';
       load(true);
     });
     load(false);
   }
 
+  /** v2 热度条：跳到指定那天的墙（先设待跳转日，再触发页面切换） */
+  function gotoDay(day) {
+    state.pendingDay = day || '';
+    window.EW.go('page-wall');
+  }
+
   window.Wall = {
-    openPage, load,
+    openPage, load, gotoDay,
     debug: () => ({ total: state.data && state.data.total, day: state.data && state.data.day }),
   };
 
