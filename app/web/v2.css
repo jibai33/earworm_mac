@@ -12,6 +12,8 @@
 /* hidden 必须压过组件自己的 display，否则空卡会莫名其妙露出来 */
 .v2-daily[hidden], .home-lastyear[hidden], .v2-cmd-mask[hidden],
 .v2-undo[hidden], .v2-daily-stamp[hidden] { display: none !important; }
+/* 去年今天卡内部按状态切换，display:grid / flex 会盖掉 UA 的 [hidden] */
+#home-ly-card [hidden] { display: none !important; }
 
 /* ---------- 通用按钮 ---------- */
 .v2-btn {
@@ -77,6 +79,11 @@
 /* ---------- ② 回看三卡 + 30 天热度条 ---------- */
 .b-row3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
 .b-row3 > * { min-width: 0; }
+/* 三张卡内容量不同，等高网格下容易堆在顶部、底部空出一大片。
+   让子元素沿高度均匀分布，剩余空间变成有节奏的间隔而不是一整块黑洞。 */
+.b-row3 > .b-card { justify-content: space-between; }
+.b-row3 .hw-foot { margin-top: 0; }
+.b-row3 .hy-chart { margin-top: 0; }
 .hw-action {
   flex-shrink: 0; padding: 3px 8px; font-family: var(--pixel-font, inherit); font-size: 12px;
   color: var(--px-amber-hi, #f6cd93); background: transparent;
@@ -88,12 +95,42 @@
 .home-lastyear {
   padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px;
 }
-.hly-covers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.hly-covers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; justify-items: center; }
 .hly-covers .hly-cover {
-  aspect-ratio: 1; background: var(--px-3, #1d232c) center/cover no-repeat;
+  width: 100%; aspect-ratio: 1;
+  background: var(--px-3, #1d232c) center/cover no-repeat;
   border: 2px solid var(--px-amber, #e6b06a); image-rendering: pixelated;
 }
 .hly-line { font-size: 12px; color: var(--px-dim, #b0b9c2); line-height: 1.6; }
+/* 有记录时列出那天的曲目，占满封面与脚注之间的空间，不留中段空洞 */
+.hly-tracks { display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }
+.hly-track { display: flex; align-items: baseline; gap: 8px; font-size: 12px; padding-top: 5px; border-top: 2px dashed var(--px-line, #2b323d); }
+.hly-track span { flex: 0 0 20px; color: var(--px-amber, #e6b06a); }
+.hly-track b { min-width: 0; font-weight: 400; color: var(--px-txt, #eae4d6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hly-track i { margin-left: auto; font-style: normal; color: var(--px-dim, #b0b9c2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 第三列常驻：没数据时给四枚「还没挂上的唱片钉」+ 引导 + 动作，
+   让卡片从上到下都有内容，而不是一块空白占位 */
+.hly-empty {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.hly-pins { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.hly-pins i {
+  position: relative; width: 100%; aspect-ratio: 1;
+  border: 2px dashed var(--px-line, #2b323d); background: rgba(8, 9, 12, .5);
+}
+.hly-pins i::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 4px; height: 4px; margin: -2px 0 0 -2px; background: rgba(72, 84, 102, .9);
+}
+.hly-empty-copy { display: flex; flex-direction: column; gap: 6px; }
+.hly-empty-line { font-size: 12px; color: var(--px-txt, #eae4d6); }
+.hly-empty-sub { font-size: 12px; line-height: 1.6; color: var(--px-dim, #b0b9c2); }
+.hly-empty .hw-action {
+  margin-top: 0; padding: 5px 10px;
+  border-color: var(--px-line, #2b323d); background: var(--px-2, #151920);
+}
 
 .v2-heat { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
 .v2-heat .b-kicker { color: var(--px-amber, #e6b06a); }
@@ -177,15 +214,20 @@
 /* ---------- 响应式 ---------- */
 @media (max-width: 1180px) {
   .b-row3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  /* 第三张卡跨满整行，不让两列布局留出半行空洞 */
   .home-lastyear { grid-column: span 2; }
-  .hly-covers { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  /* 跨满整行后卡片很宽：图形别被拉成巨幅方块，空态改成横向铺开 */
+  .hly-covers, .hly-pins { max-width: 320px; }
+  .hly-empty { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .hly-pins { flex: 0 0 240px; }
+  .hly-empty-copy { flex: 1; min-width: 180px; }
+  .hly-empty .hw-action { margin-left: auto; }
 }
 @media (max-width: 899px) {
   .v2-daily { flex-direction: column; min-height: 0; }
   .v2-daily-cover { flex: 0 0 auto; width: 112px; }
   .b-row3 { grid-template-columns: 1fr !important; }
   .home-lastyear { grid-column: auto; }
-  .hly-covers { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .v2-heat-grid { gap: 3px; }
   .v2-cmd-mask { padding: 8vh 12px 12px; }
 }

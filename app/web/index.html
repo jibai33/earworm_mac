@@ -384,13 +384,23 @@
         </div>
       </section>
 
-      <section class="b-card home-lastyear" id="home-ly-card" hidden>
+      <!-- 常驻第三列：去年没记录也给引导和动作，固定三列网格不留整列空白 -->
+      <section class="b-card home-lastyear" id="home-ly-card">
         <div class="b-kicker">ON THIS DAY · 去年今天 <span class="k-right" id="hly-date"></span></div>
-        <div class="hly-covers" id="hly-covers"></div>
-        <div class="hly-line" id="hly-line"></div>
+        <div class="hly-covers" id="hly-covers" hidden></div>
+        <div class="hly-empty" id="hly-empty">
+          <div class="hly-pins" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="hly-empty-copy">
+            <div class="hly-empty-line" id="hly-empty-line">去年今天还没有记录</div>
+            <div class="hly-empty-sub" id="hly-empty-sub">从今天开始攒，明年这里会挂上一张唱片。</div>
+          </div>
+          <button class="hw-action" id="hly-empty-go" type="button">去听一首 →</button>
+        </div>
+        <div class="hly-line" id="hly-line" hidden></div>
+        <div class="hly-tracks" id="hly-tracks" hidden></div>
         <div class="hw-foot">
-          <span class="hw-note">只读本机记录 · 不出网</span>
-          <button class="hw-action" id="hly-replay" type="button">再听那天 →</button>
+          <span class="hw-note" id="hly-note">从今天开始记录 · 明年再回来看</span>
+          <button class="hw-action" id="hly-replay" type="button" hidden>再听那天 →</button>
         </div>
       </section>
     </div>

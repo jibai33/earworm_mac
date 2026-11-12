@@ -184,23 +184,62 @@
       const d = await api(`/api/taste/lastyear?syncKey=${kq()}`);
       state.lastyear = d;
       renderLastYear();
-    } catch { card.hidden = true; }
+    } catch {
+      state.lastyear = null;
+      renderLastYear('error');
+    }
   }
 
-  function renderLastYear() {
+  function renderLastYear(reason) {
     const card = $('home-ly-card');
     if (!card) return;
     const d = state.lastyear;
-    // 设计规则：没有去年数据就不显示这张卡，位置让给今日一曲
-    if (!d || d.empty) { card.hidden = true; return; }
-    card.hidden = false;
-    $('hly-date').textContent = d.label || '';
+    const empty = !d || d.empty;
+    // 第三列常驻：回看行是固定三列，隐藏这张卡会留一整列空白。
+    // 没数据 / 取不到数据时显示引导或错误状态，都有文字和动作，不是空占位。
+    const set = (id, hide) => { const el = $(id); if (el) el.hidden = hide; };
+    card.classList.toggle('is-empty', empty);
+    set('hly-empty', !empty);
+    set('hly-covers', empty);
+    set('hly-line', empty);
+    set('hly-tracks', empty);
+    set('hly-replay', empty);
+    if ($('hly-date')) $('hly-date').textContent = empty ? '' : (d.label || '');
+
+    if (empty) {
+      if ($('hly-empty-line')) $('hly-empty-line').textContent =
+        reason === 'error' ? '本机记录暂时读不出来' : '去年今天还没有记录';
+      if ($('hly-empty-sub')) $('hly-empty-sub').textContent = reason === 'error'
+        ? '刷新页面或稍后再试，已经记下的不会丢。'
+        : '从今天开始攒，明年这里会挂上一张唱片。';
+      if ($('hly-note')) $('hly-note').textContent = '从今天开始记录 · 明年再回来看';
+      const box = $('hly-covers');
+      if (box) box.innerHTML = '';
+      const tracks = $('hly-tracks');
+      if (tracks) tracks.innerHTML = '';
+      return;
+    }
+    if ($('hly-note')) $('hly-note').textContent = '只读本机记录 · 不出网';
     $('hly-line').textContent = d.line || '';
+    const all = d.covers || [];
+    // 封面固定四枚一行，多出来的曲目在下方列表里列出，不会出现半行空位
     const box = $('hly-covers');
-    box.innerHTML = (d.covers || []).map((c) => {
+    box.innerHTML = all.slice(0, 4).map((c) => {
       const cv = c.cover ? EW().coverUrl(c.cover) : '';
       return `<div class="hly-cover" title="${esc(c.name)}${c.artist ? ' — ' + esc(c.artist) : ''}"${cv ? ` style="background-image:url('${cv}')"` : ''}></div>`;
     }).join('');
+    const tracks = $('hly-tracks');
+    if (tracks) tracks.innerHTML = all.slice(0, 4).map((c, i) =>
+      `<div class="hly-track"><span>${String(i + 1).padStart(2, '0')}</span>` +
+      `<b title="${esc(c.name)}">${esc(c.name || '未命名')}</b>` +
+      `<i title="${esc(c.artist || '')}">${esc(c.artist || '')}</i></div>`).join('');
+  }
+
+  /* 空态卡的动作：与左栏「听今日推荐」同一条路径，不给回看卡塞新的播放逻辑 */
+  function goListen() {
+    const b = $('daily-play');
+    if (b) { b.click(); return; }
+    EW().go('page-search');
   }
 
   /* ================= ④ 成就解锁：即时反馈 ================= */
@@ -407,6 +446,7 @@
     bind('hw-replay', () => replayDay('', '今天', true));
     bind('hy-replay', () => replayPeriod('month'));
     bind('hly-replay', replayLastYear);
+    bind('hly-empty-go', goListen);
     bind('wall-replay', () => replayDay('', '这一天'));
     bind('yb-replay', () => replayPeriod());
     bind('v2-daily-play', playDaily);

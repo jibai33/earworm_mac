@@ -46,8 +46,9 @@
 }
 /* 列宽自适应：宽屏 8 列（24 = 3 行整），窄屏自动变多列，格子不会被撑大 */
 .hw-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
-/* 空墙：只留一排钉子，铺满一行，不把 24 个空格堆成一片 */
-.hw-strip.is-empty { grid-template-columns: repeat(8, 1fr); }
+/* 空墙只渲染 8 枚钉子（不再铺 24 格）。两行四列让格子与有数据时一样大，
+   卡片中段不会空出一大片黑；钉子数量没变，视觉噪音也不增加。 */
+.hw-strip.is-empty { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .hw-tile {
   position: relative; aspect-ratio: 1; background: var(--px-2);
   border: 2px solid var(--px-line); overflow: hidden;
