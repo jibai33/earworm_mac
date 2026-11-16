@@ -39,6 +39,7 @@ const qqQrLogin = require('./modules/qq-qr-login.js');
 const xyApi = require('./modules/xiaoyuzhou-api.js');
 const qishuiQrLogin = require('./modules/qishui-qr-login.js');
 const loginEgg = require('./modules/login-egg.js');
+const dailyEgg = require('./modules/daily-egg.js');
 const electronRuntime = require('./modules/electron-runtime');
 const QISHUI_QR_AVAILABLE = electronRuntime.isChromiumShim ? !!electronRuntime.findChrome() : true;
 const tasteProfile = require('./modules/taste-profile.js');
@@ -501,6 +502,12 @@ const server = http.createServer(async (req, res) => {
       const body = req.method === 'POST' ? await readBody(req) : {};
       return sendJSON(res, loginEgg.replay(body.kind || q.get('kind') || 'first'));
     }
+
+    // ==================== 每日彩蛋：每天第一次打开的一张今日签 ====================
+    // status 只读（刷新页面不会刷连续天数），claim 才落盘
+    if (pn === '/api/daily/status') return sendJSON(res, dailyEgg.status());
+    if (pn === '/api/daily/claim') return sendJSON(res, dailyEgg.claim());
+    if (pn === '/api/daily/skip') return sendJSON(res, dailyEgg.skip());
 
     // ---------- 用户歌单 ----------
     if (pn === '/api/user/playlists') {

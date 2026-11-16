@@ -320,6 +320,7 @@
   function baseCommands() {
     return [
       { t: '播放今日一曲', g: '▶', k: '↵', run: playDaily },
+      { t: '看今天的今日签', g: '◈', run: () => { if (window.DailySeal && DailySeal.open) DailySeal.open(); } },
       { t: '给我一首意外的（白天也能用）', g: '✦', run: surprise },
       { t: '重播今天的墙 → 加入队列', g: '↻', run: () => replayDay('', '今天', true) },
       { t: '把这一期做成歌单 → 加入队列', g: '≡', run: () => replayPeriod() },

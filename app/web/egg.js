@@ -386,6 +386,113 @@
     }
   }
 
+  /* ---------- 场景 03 · 每日签（无暗号，直接演出） ----------
+     意象：一张唱片从地平线后面升起来，跟太阳一个速度。
+     只有 84 帧的短演出，落在「第 N 天，位置一直在」这句话上。 */
+  function disc(cx, cy, r, spin) {
+    for (let dy = -r; dy <= r; dy++) {
+      const w = Math.floor(Math.sqrt(Math.max(0, r * r - dy * dy)));
+      px(cx - w, cy + dy, w * 2, 1, '#0c0f16');
+    }
+    // 纹路：三圈细环
+    for (let k = 1; k <= 3; k++) {
+      const rr = Math.round(r * k / 4);
+      for (let dy = -rr; dy <= rr; dy += 1) {
+        const w = Math.floor(Math.sqrt(Math.max(0, rr * rr - dy * dy)));
+        px(cx - w, cy + dy, 2, 1, 'rgba(126,138,158,.22)');
+      }
+    }
+    // 中心标签
+    const lr = Math.max(2, Math.round(r * .3));
+    for (let dy = -lr; dy <= lr; dy++) {
+      const w = Math.floor(Math.sqrt(Math.max(0, lr * lr - dy * dy)));
+      px(cx - w, cy + dy, w * 2, 1, C.amber);
+    }
+    px(cx - 1, cy - 1, 2, 2, C.dark);
+    // 高光跟着转角走：像素风不转形状，只挪亮块
+    const ang = spin % 4;
+    const hx = [r * .55, 0, -r * .55, 0][ang], hy = [0, r * .55, 0, -r * .55][ang];
+    px(cx + hx - 1, cy + hy - 1, 2, 2, 'rgba(246,205,147,.55)');
+  }
+
+  function drawDaily(f) {
+    const act = actOf(f);
+    sky(f, true);
+    hills(f, false); hills(Math.floor(f * .6), true);
+    ground(true);
+
+    // 太阳：前 26 帧从地平线后面升到 y≈34，之后停住并轻微呼吸
+    const rise = Math.min(1, f / 26);
+    const e = 1 - Math.pow(1 - rise, 2);
+    const sunY = GROUND - 2 - e * 52 + (act >= 2 ? Math.sin(f / 7) * .8 : 0);
+    const sr = 9;
+    if (rise > 0) {
+      for (let i = 5; i >= 1; i--) {
+        const rr = sr + i * 3;
+        for (let dy = -rr; dy <= rr; dy += 2) {
+          const w = Math.floor(Math.sqrt(Math.max(0, rr * rr - dy * dy)));
+          px(96 - w, sunY + dy, w * 2, 1, `rgba(246,205,147,${.02 * (6 - i) * rise})`);
+        }
+      }
+      for (let dy = -sr; dy <= sr; dy++) {
+        const w = Math.floor(Math.sqrt(Math.max(0, sr * sr - dy * dy)));
+        px(96 - w, sunY + dy, w * 2, 1, dy < -3 ? C.amberHi : dy > 4 ? C.amberDim : C.amber);
+      }
+      if (act >= 1) {
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4 + f * .02;
+          const d = sr + 4 + (f % 7);
+          if ((f + i * 3) % 9 < 6) px(96 + Math.cos(a) * d, sunY + Math.sin(a) * d, 1, 1, 'rgba(246,205,147,.35)');
+        }
+      }
+    }
+
+    // 唱片：幕 1 起从地平线下升到太阳前面，幕 2 起开始转
+    if (act >= 1) {
+      const t = Math.min(1, (f - 18) / 18);
+      const te = 1 - Math.pow(1 - t, 3);
+      const cy = GROUND + 6 - te * 52;
+      const r = Math.round(4 + te * 12);
+      disc(96, cy, r, act >= 2 ? Math.floor(f / 2) : 0);
+      // 唱片边缘的暖光
+      px(96 - r - 1, cy - 1, 1, 2, 'rgba(246,205,147,.5)');
+      px(96 + r, cy - 1, 1, 2, 'rgba(246,205,147,.5)');
+    } else {
+      const pulse = f % 8 < 4 ? C.amberHi : C.amberDim;
+      px(94, GROUND - 3, 4, 3, pulse);
+    }
+
+    // 音符从唱片上飘起来
+    if (act >= 2) {
+      for (let i = 0; i < 5; i++) {
+        const yy = GROUND - 6 - ((f - 42) * 1.5 + i * 13) % 62;
+        const xx = 96 + Math.sin((f + i * 11) / 9) * (14 + i * 5);
+        if (yy > -OY + 6) note(xx, yy, i % 2 ? C.amberHi : C.amber, i === 0);
+      }
+    }
+
+    // 幕 2 的一小簇礼花 + 幕 3 的纸带
+    if (act >= 2) {
+      fireworks(f, 44, 34, [C.amber, C.amberHi, C.greenHi, C.white], 0);
+      fireworks(f, 148, 30, [C.amberHi, C.purple, C.white, C.green], 6);
+    }
+    if (act >= 2) confetti(f, false);
+    if (act === 3) {
+      for (let i = 0; i < 12; i++) {
+        const x = -OX + rnd(i + 61) * VW;
+        const y = 12 + ((f * .7 + i * 8) % 70);
+        px(x, y, 2, 1, i % 2 ? C.amberHi : 'rgba(246,205,147,.5)');
+      }
+      veil(.2);
+    }
+  }
+
+  function sceneOf(kind) {
+    if (kind === 'return') return drawReturn;
+    if (kind === 'daily') return drawDaily;
+    return drawFirst;
+  }
+
   /* ---------- 8-bit 芯片音效 ---------- */
   let actx = null;
   function chip(notes, type) {
@@ -432,6 +539,12 @@
       ['有人从窗口朝你挥手', '好久不见，位置还留着'],
       ['欢迎回来，位置还留着', '歌单、口味、还有那句没说完的话，都在原处'],
     ],
+    daily: [
+      ['天还没亮透', '但唱片已经在了'],
+      ['它从地平线后面升起来', '一格一格，跟太阳一个速度'],
+      ['针落下去，声音就回来了', '今天这一面，只放一次'],
+      ['今天也来了', '位置一直在'],
+    ],
   };
 
   /* ---------- 状态 ---------- */
@@ -464,7 +577,9 @@
   }
   function setCaption(act) {
     const cap = $('egg-caption');
-    const pair = (CAPTIONS[current && current.kind] || CAPTIONS.first)[act] || CAPTIONS.first[act];
+    // 调用方可以随场景传一套字幕（每日签要把「第 N 天」写进去）
+    const set = (current && current.captions) || CAPTIONS[current && current.kind] || CAPTIONS.first;
+    const pair = set[act] || CAPTIONS.first[act];
     $('egg-scene-title').textContent = pair[0];
     $('egg-scene-line').textContent = pair[1];
     cap.classList.remove('show', 'typing');
@@ -491,7 +606,7 @@
     shakeX = (unlocked && f >= 42 && f <= 47) ? ((f % 3) - 1) * 2 : 0;
     shakeY = (unlocked && f >= 44 && f <= 46) ? ((f % 2) ? 1 : -1) : 0;
     ctx.clearRect(0, 0, CW, CH);
-    (current && current.kind === 'return' ? drawReturn : drawFirst)(f);
+    sceneOf(current && current.kind)(f);
     shakeX = shakeY = 0;
 
     if (unlocked && act !== currentAct) {
@@ -523,18 +638,21 @@
   function open(p) {
     if (!p || !modal()) return;
     if (eggVisible && Number(p.at || 0) === lastAt) return;
+    // gate:false —— 每日签这类不需要暗号的场景，直接进 cinema
+    const noGate = p.gate === false || p.kind === 'daily';
     current = p; lastAt = Number(p.at || 0); eggVisible = true;
     unlocked = false; validating = false; composing = false;
-    prefix = Array.from(p.reveal || '').join('');
+    prefix = noGate ? '' : Array.from(p.reveal || '').join('');
     tapCount = 0; currentAct = -1; idleFrame = 0; lastTs = 0;
 
     const m = modal();
     m.hidden = false;
     m.setAttribute('aria-hidden', 'false');
     m.dataset.kind = p.kind || 'first';
-    m.dataset.phase = 'gate';
+    m.dataset.phase = noGate ? 'cinema' : 'gate';
     $('egg-badge').textContent = p.badge || 'EASTER EGG';
-    $('egg-kicker').textContent = p.kind === 'return' ? 'HIDDEN TRACK 02 / WELCOME BACK' : 'HIDDEN TRACK 01 / FIRST MEET';
+    $('egg-kicker').textContent = noGate ? 'DAILY SEAL'
+      : p.kind === 'return' ? 'HIDDEN TRACK 02 / WELCOME BACK' : 'HIDDEN TRACK 01 / FIRST MEET';
     $('egg-title').textContent = p.title || '彩蛋';
     $('egg-riddle').textContent = p.riddle || '';
     $('egg-subtitle').textContent = p.subtitle || '';
@@ -545,17 +663,28 @@
     $('egg-caption').classList.remove('show', 'typing');
     $('egg-flash').classList.remove('on');
     $('egg-gate-box').classList.remove('shake');
+    // 每日签没有「再看一次」：重播走登录彩蛋的状态机，对不上
+    $('egg-replay').hidden = noGate;
     setTrack(-1);
     input().value = '';
     input().disabled = false;
     renderCells('');
-    setStatus(prefix ? `前 ${Array.from(prefix).length} 个字：${prefix}　·　四个字都要自己输完` : '输入四个字，按回车', prefix ? 'hint' : '');
 
     if (!ctx) {
       canvas = $('egg-canvas');
       if (canvas && canvas.getContext) ctx = canvas.getContext('2d');
     }
     resize();
+
+    if (noGate) {
+      unlocked = true;
+      input().disabled = true;
+      setStatus('', '');
+      startAnimation();
+      return;
+    }
+
+    setStatus(prefix ? `前 ${Array.from(prefix).length} 个字：${prefix}　·　四个字都要自己输完` : '输入四个字，按回车', prefix ? 'hint' : '');
     if (ctx) startAnimation();
     setTimeout(() => { if (eggVisible && !unlocked) input().focus({ preventScroll: true }); }, 140);
   }
@@ -573,6 +702,7 @@
     $('egg-flash').classList.remove('on');
     $('egg-end').hidden = true;
     $('egg-caption').classList.remove('show', 'typing');
+    $('egg-replay').hidden = false;   // 下一次可能是登录彩蛋，按钮要还回去
     current = null;
   }
 
@@ -623,6 +753,7 @@
   }
 
   async function skip() {
+    if (current && current.kind === 'daily') { close(); return; }
     try { await post('/api/login/egg/skip', {}); } catch { /* 忽略 */ }
     close();
   }
@@ -691,7 +822,7 @@
       resize();
       if (unlocked && !raf) {   // 落版后 resize 重绘最后一帧
         ctx.clearRect(0, 0, CW, CH);
-        (current && current.kind === 'return' ? drawReturn : drawFirst)(TOTAL);
+        sceneOf(current && current.kind)(TOTAL);
       }
     });
     setTimeout(() => poll(), 700);
@@ -702,6 +833,8 @@
 
   window.Egg = {
     poll, open, close, replay, skip,
+    /** 外部（每日签里程碑）调用：无暗号直接播一段像素演出 */
+    playScene: (p) => open(Object.assign({ gate: false }, p || {})),
     debug: () => ({ visible: eggVisible, unlocked, validating, phase: modal() ? modal().dataset.phase : '', act: currentAct, kind: current && current.kind, W: CW, H: CH }),
   };
 })();

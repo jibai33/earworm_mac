@@ -1,0 +1,161 @@
+/* ====================================================================
+   闻曲 · 每日彩蛋「今日签」
+   ------------------------------------------------------------------
+   开机动画之后从右下角浮出的一张实体感小卡：正面是今天的签，
+   背面是今日指令与连续天数进度。像素风：零圆角、2px 边、硬投影。
+   位置固定在播放条上方（播放条顶边距底约 82px），不挡任何控件。
+   ==================================================================== */
+
+.ds[hidden] { display: none !important; }
+
+.ds {
+  position: fixed; right: 20px; bottom: 92px; z-index: 87;
+  width: 336px; max-width: calc(100vw - 32px);
+  font-family: var(--pixel-font, inherit);
+  opacity: 0; transform: translateY(14px);
+  transition: opacity .22s steps(4), transform .22s steps(4);
+  pointer-events: none;
+}
+.ds.is-in { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.ds.is-out { opacity: 0; transform: translateY(10px); pointer-events: none; }
+/* 右下角偶尔会有「已切到深夜配色 · 可撤销」提示条，撞上时让开 */
+.ds.is-lifted { bottom: 168px; }
+/* 十秒没被理，收一点亮度，但不消失、不移位 */
+.ds.is-idle .ds-card { opacity: .62; }
+.ds.is-idle:hover .ds-card { opacity: 1; }
+
+.ds-card {
+  position: relative;
+  background: var(--px-2, #151920);
+  border: 2px solid var(--px-line, #2b323d);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .85);
+  padding: 12px 14px 12px;
+  color: var(--px-txt, #eae4d6);
+  transition: opacity .2s steps(3);
+  overflow: hidden;
+}
+/* 左上角那道琥珀色脊线，像唱片封套的切口 */
+.ds-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--px-amber, #e6b06a);
+}
+/* 极淡的横向扫描线，和氛围背景一个语汇 */
+.ds-card::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .07) 0 1px, transparent 1px 3px);
+}
+
+.ds-top {
+  display: flex; align-items: center; gap: 8px;
+  padding-left: 4px; margin-bottom: 10px;
+}
+.ds-no {
+  font-size: 11px; letter-spacing: .08em; color: var(--px-amber, #e6b06a);
+}
+.ds-date { font-size: 11px; color: var(--px-dim, #b0b9c2); letter-spacing: .04em; margin-right: auto; }
+.ds-seal {
+  font-size: 10px; letter-spacing: .1em;
+  color: var(--px-amber-hi, #f6cd93);
+  border: 2px solid var(--px-amber, #e6b06a);
+  padding: 1px 6px; transform: rotate(-3deg); margin-right: 8px;
+}
+.ds-x {
+  width: 22px; height: 22px; flex: 0 0 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 2px solid transparent;
+  color: var(--px-dim, #b0b9c2); font-size: 14px; line-height: 1; cursor: pointer;
+}
+.ds-x:hover { border-color: var(--px-line, #2b323d); color: var(--px-txt, #eae4d6); }
+
+/* ---------- 正面 ---------- */
+.ds-face { padding-left: 8px; position: relative; z-index: 1; }
+.ds-face[hidden] { display: none !important; }
+
+.ds-kicker {
+  font-size: 10px; letter-spacing: .14em; color: var(--px-dim, #b0b9c2);
+  margin-bottom: 8px;
+}
+.ds-line {
+  margin: 0 0 6px; font-size: 17px; line-height: 1.5;
+  color: var(--px-txt, #eae4d6); word-break: break-word;
+}
+.ds-sub {
+  margin: 0 0 12px; font-size: 12px; line-height: 1.6;
+  color: var(--px-dim, #b0b9c2); word-break: break-word;
+}
+.ds-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-chip {
+  font-size: 11px; padding: 2px 7px;
+  border: 2px solid var(--px-amber, #e6b06a);
+  color: var(--px-amber-hi, #f6cd93);
+}
+.ds-chip.dim { border-color: var(--px-line, #2b323d); color: var(--px-dim, #b0b9c2); }
+.ds-chip.is-broken { border-color: var(--px-red, #d1483a); color: var(--px-red, #d1483a); }
+
+/* ---------- 背面 ---------- */
+.ds-back-kicker {
+  font-size: 10px; letter-spacing: .14em; color: var(--px-amber, #e6b06a);
+  margin-bottom: 8px;
+}
+.ds-act {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--px-3, #1d232c); border: 2px solid var(--px-line, #2b323d);
+  padding: 8px 10px; margin-bottom: 10px; color: var(--px-txt, #eae4d6);
+  font-family: inherit;
+}
+.ds-act:hover { border-color: var(--px-amber, #e6b06a); }
+.ds-act b { display: block; font-size: 13px; font-weight: normal; margin-bottom: 3px; }
+.ds-act small { font-size: 11px; color: var(--px-dim, #b0b9c2); line-height: 1.5; }
+
+.ds-prog { margin-bottom: 10px; }
+.ds-prog-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; color: var(--px-dim, #b0b9c2); margin-bottom: 5px;
+}
+.ds-prog-head b { color: var(--px-amber, #e6b06a); font-weight: normal; }
+.ds-bar {
+  height: 6px; background: var(--px-1, #10131a);
+  border: 2px solid var(--px-line, #2b323d); display: flex;
+}
+.ds-bar i { display: block; height: 100%; background: var(--px-amber, #e6b06a); }
+.ds-stats {
+  display: flex; gap: 14px; font-size: 11px; color: var(--px-dim, #b0b9c2);
+}
+.ds-stats b { color: var(--px-txt, #eae4d6); font-weight: normal; }
+
+/* ---------- 底部按钮 ---------- */
+.ds-foot {
+  display: flex; gap: 8px; margin-top: 12px; padding-left: 4px;
+  position: relative; z-index: 1;
+}
+.ds-btn {
+  flex: 1; font-family: inherit; font-size: 12px; cursor: pointer;
+  padding: 6px 8px; background: transparent; color: var(--px-dim, #b0b9c2);
+  border: 2px solid var(--px-line, #2b323d);
+}
+.ds-btn:hover { border-color: var(--px-amber, #e6b06a); color: var(--px-txt, #eae4d6); }
+.ds-btn.solid {
+  background: var(--px-amber, #e6b06a); color: #10100f;
+  border-color: var(--px-amber-hi, #f6cd93);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .8);
+}
+.ds-btn.solid:active { transform: translate(1px, 1px); box-shadow: none; }
+.ds-btn.seal {
+  border-color: var(--px-green, #8fb8ae); color: var(--px-green, #8fb8ae);
+}
+.ds-btn.seal:hover { background: var(--px-green, #8fb8ae); color: #10100f; }
+
+/* 里程碑那天：金边 + 四角标记 */
+.ds-card.is-milestone {
+  border-color: var(--px-amber-hi, #f6cd93);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .85), 0 0 0 2px rgba(246, 205, 147, .18);
+}
+.ds-card.is-milestone::before { width: 4px; background: var(--px-amber-hi, #f6cd93); }
+
+/* 断签那天：把「连续」换成红色，不装作没断 */
+.ds-card.is-broken .ds-no { color: var(--px-dim, #b0b9c2); }
+
+@media (max-width: 720px) {
+  .ds { right: 12px; left: 12px; width: auto; bottom: 148px; }
+  .ds-line { font-size: 15px; }
+}
