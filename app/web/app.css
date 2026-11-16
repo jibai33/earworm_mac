@@ -589,14 +589,6 @@ body::before {
 .q-item:hover { background: rgba(255,255,255,.05); }
 .q-item.cur { color: var(--amber); }
 
-/* ═══ 提示条 ═══ */
-.api-tip {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 90;
-  background: rgba(192,57,43,.92); color: #f5e9d5; font-size: 12px;
-  padding: 8px 14px; text-align: center;
-}
-.api-tip code { background: rgba(255,255,255,.12); border-radius: 4px; padding: 1px 6px; }
-
 /* ═══════════ 移动端 ═══════════ */
 @media (max-width: 899px) {
   .brand-sub, .bar-right .vol, .bar-time { display: none; }

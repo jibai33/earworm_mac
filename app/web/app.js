@@ -2,17 +2,11 @@
 const $ = (id) => document.getElementById(id);
 const audio = $('audio');
 
-/* API 基地址：本地/自部署为空；GitHub Pages 部署时默认指向云端服务 */
-const IS_PAGES = location.hostname.endsWith('github.io');
-const CLOUD_API = 'https://earworm-music.app.workbuddy.host';
-const CLOUD_SHARECODE = '66G2SQ67OM';
-let API_BASE = localStorage.getItem('ew_api') || (IS_PAGES ? CLOUD_API : '');
-function apiUrl(path) {
-  if (!API_BASE) return path;
-  const sep = path.includes('?') ? '&' : '?';
-  const code = API_BASE === CLOUD_API ? CLOUD_SHARECODE : localStorage.getItem('ew_sharecode') || '';
-  return API_BASE + path + sep + (code ? 'sharecode=' + code : '');
-}
+/* API 路径：只有一个服务实例，就是本机跑着的这个进程。
+   不接受外部服务地址，也不为任何静态托管形态让路——
+   闻曲是本地播放器，服务端必须在本机（app/server.js）。 */
+function apiUrl(path) { return path; }
+window.apiUrl = apiUrl;
 
 const POEMS = [
   '此曲只应天上有，人间能得几回闻。',
@@ -67,22 +61,6 @@ async function api(path, opts) {
   }
   if (!r.ok && r.status >= 500) throw new Error('服务出错（HTTP ' + r.status + '），看服务端日志');
   return r.json();
-}
-
-/* ---------- API 地址设置（Pages 模式） ---------- */
-if (IS_PAGES) {
-  document.addEventListener('DOMContentLoaded', () => {
-    const tip = document.createElement('div');
-    tip.className = 'api-tip';
-    tip.innerHTML = API_BASE
-      ? `在线版 · 服务：<code>${escapeHtml(API_BASE)}</code> <button class="text-btn" onclick="setApiBase()">修改</button>`
-      : `在线版需要指定服务地址 <button class="brush-btn" onclick="setApiBase()">设置</button>`;
-    document.body.prepend(tip);
-  });
-}
-function setApiBase() {
-  const v = prompt('填入闻曲服务地址（如 https://your-server.com）', API_BASE);
-  if (v !== null) { localStorage.setItem('ew_api', v.trim()); location.reload(); }
 }
 
 /* ---------- 对外小接口：给 night.js / crate.js 这类同页模块用 ----------

@@ -647,14 +647,6 @@ input[type='range']::-webkit-slider-thumb {
   backdrop-filter: none !important;
 }
 
-/* 顶部「在线版服务」提示条 */
-.api-tip,
-#api-tip {
-  background: var(--px-2) !important;
-  border: 2px solid var(--px-line) !important;
-  font-size: 12px !important;
-}
-
 /* 动效：像素风不要缓慢缓动，改成阶梯 */
 .b-card,
 .rail-card,
