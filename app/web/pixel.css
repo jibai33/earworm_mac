@@ -1017,3 +1017,40 @@ img.px-broken {
   .mini-name { font-size: 16px !important; }
   .mini-artist { font-size: 11px !important; }
 }
+
+/* ---------- 评论抽屉：像素化 ----------
+   圆角一律归零、边框加粗到 2px，沿用全局硬投影，避免和周围控件不是一套 */
+.cmt-badge,
+.cmt-more,
+.cmt-login,
+.cmt-compose textarea,
+.cmt-send {
+  border-radius: 0 !important;
+}
+.cmt-badge,
+.cmt-more,
+.cmt-login,
+.cmt-compose textarea {
+  border: 2px solid var(--px-line) !important;
+  background: var(--px-1) !important;
+  color: var(--px-dim) !important;
+}
+.cmt-more:hover,
+.cmt-login:hover,
+.cmt-compose textarea:focus {
+  border-color: var(--px-amber) !important;
+  color: var(--px-txt) !important;
+}
+.cmt-send {
+  background: var(--px-amber) !important;
+  color: #10100f !important;
+  border: 2px solid var(--px-amber-hi) !important;
+  box-shadow: var(--px-shadow) !important;
+}
+.cmt-send:active { transform: translate(1px, 1px); box-shadow: none !important; }
+.c-avatar,
+.c-avatar-ph { border-radius: 0 !important; }
+.c-avatar-ph { background: var(--px-2) !important; color: var(--px-dim) !important; }
+.c-reply { border-radius: 0 !important; }
+.c-sec { color: var(--px-amber) !important; }
+.cmt-hint.is-err { color: var(--px-red) !important; }

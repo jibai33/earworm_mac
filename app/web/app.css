@@ -514,12 +514,62 @@ body::before {
 .comment-list { overflow-y: auto; flex: 1; padding: 4px 0 20px; }
 .c-sec { font-family: var(--serif); letter-spacing: .14em; font-size: 12px; color: var(--amber); margin: 14px 4px 6px; }
 .c-item { display: flex; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
-.c-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; object-fit: cover; }
+.c-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+  background: rgba(255,255,255,.05);   /* 图还没到 / 被 CDN 拒了，也别留一个洞 */
+}
 .c-body { flex: 1; min-width: 0; }
 .c-head { display: flex; justify-content: space-between; align-items: center; }
 .c-nick { font-size: 12px; color: var(--txt-dim); }
 .c-likes { font-size: 11px; color: var(--txt-dim); }
 .c-content { font-size: 13px; color: var(--txt); line-height: 1.55; margin-top: 4px; word-break: break-word; }
+
+/* ── 评论抽屉：平台徽标 / 热评标记 / 回复 / 分页 / 输入栏 ── */
+.cmt-head-side { display: flex; align-items: center; gap: 8px; }
+.cmt-badge {
+  font-size: 11px; color: var(--txt-dim); border: 1px solid var(--line-2);
+  border-radius: 999px; padding: 2px 9px; white-space: nowrap; letter-spacing: .02em;
+}
+.cmt-empty { padding: 28px 12px; text-align: center; color: var(--txt-dim); font-size: 13px; line-height: 1.9; }
+.cmt-sub { font-size: 12px; opacity: .72; }
+.cmt-login {
+  margin-top: 6px; background: none; border: 1px solid var(--line-2); color: var(--amber);
+  border-radius: 6px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.cmt-login:hover { border-color: var(--amber); }
+.c-reply {
+  margin-top: 6px; padding: 6px 8px; border-left: 2px solid var(--line-2);
+  color: var(--txt-dim); font-size: 12px; line-height: 1.5;
+}
+.c-avatar-ph {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--line-2); color: var(--txt-dim); font-size: 13px;
+}
+.cmt-more {
+  display: block; width: 100%; margin: 14px 0 4px; padding: 9px;
+  background: none; border: 1px solid var(--line-2); border-radius: 8px;
+  color: var(--txt-dim); font: inherit; font-size: 12px; cursor: pointer;
+}
+.cmt-more:hover { color: var(--txt); border-color: var(--amber); }
+.cmt-compose { border-top: 1px solid var(--line-2); padding-top: 10px; margin-top: 4px; }
+.cmt-compose textarea {
+  width: 100%; resize: none; background: rgba(255,255,255,.03); border: 1px solid var(--line-2);
+  border-radius: 8px; color: var(--txt); font: inherit; font-size: 13px; line-height: 1.5;
+  padding: 8px 10px; outline: none;
+}
+.cmt-compose textarea:focus { border-color: var(--amber); }
+.cmt-compose textarea::placeholder { color: var(--txt-dim); opacity: .7; }
+.cmt-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.cmt-hint { flex: 1; font-size: 11px; color: var(--txt-dim); line-height: 1.4; min-width: 0; }
+.cmt-hint.is-err { color: #e0705f; }
+.cmt-hint .cmt-login { margin: 0 0 0 4px; }
+.cmt-count { font-size: 11px; color: var(--txt-dim); font-variant-numeric: tabular-nums; }
+.cmt-send {
+  background: var(--amber); color: #14100c; border: none; border-radius: 7px;
+  padding: 6px 16px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.cmt-send:disabled { opacity: .55; cursor: default; }
+.cmt-drawer.is-readonly .cmt-compose { display: none; }
 
 /* ═══ 弹窗 ═══ */
 .login-modal {

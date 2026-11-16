@@ -24,6 +24,7 @@ const {
   like: like_song,
   likelist,
   comment_music,
+  comment: comment_post,
 } = require('NeteaseCloudMusicApi');
 const http = require('http');
 const https = require('https');
@@ -41,6 +42,7 @@ const loginEgg = require('./modules/login-egg.js');
 const electronRuntime = require('./modules/electron-runtime');
 const QISHUI_QR_AVAILABLE = electronRuntime.isChromiumShim ? !!electronRuntime.findChrome() : true;
 const tasteProfile = require('./modules/taste-profile.js');
+const { createComments } = require('./modules/comments.js');
 const recommender = require('./modules/recommend.js');
 const night = require('./modules/night.js');
 const crate = require('./modules/crate.js');
@@ -307,6 +309,16 @@ const unified = createUnified({
     },
     xy: { qr: false, methods: ['手机号 + 短信验证码'], note: '官网 Web 接口换取 token 并保存在本机' },
   }),
+});
+
+/* ---------- 统一评论层：四平台一套出入参 ---------- */
+const commentsApi = createComments({
+  neteaseCommentMusic: comment_music,
+  neteaseComment: comment_post,
+  qishuiApi, qqApi,
+  getNeteaseCookie: () => userCookie,
+  getQishuiCookie: () => qishuiCookie,
+  getQQCookie: () => qqApi.getQQCookie(),
 });
 
 const tasteCache = new Map(); // syncKey -> { updatedAt, ts, data }
@@ -712,25 +724,27 @@ const server = http.createServer(async (req, res) => {
     if (pn === '/api/xy/episode') return sendJSON(res, await xyApi.handleXYEpisode(q.get('id') || ''));
     if (pn === '/api/xy/subscription') return sendJSON(res, await xyApi.handleXYSubscription(100));
 
-    // ---------- 评论（网易云热评） ----------
-    if (pn === '/api/comment') {
-      const id = q.get('id');
-      const limit = Math.min(30, parseInt(q.get('limit') || '20', 10) || 20);
-      const offset = Math.max(0, parseInt(q.get('offset') || '0', 10) || 0);
-      try {
-        const r = await comment_music({ id, limit, offset, cookie: userCookie, timestamp: Date.now() });
-        const b = r.body || {};
-        const map = (c) => ({
-          id: c.commentId, content: c.content,
-          likedCount: c.likedCount || 0,
-          time: c.time, user: { nickname: (c.user && c.user.nickname) || '云村村民', avatar: (c.user && c.user.avatarUrl) || '' },
-        });
-        return sendJSON(res, {
-          total: b.total || 0,
-          comments: (b.comments || []).map(map),
-          hotComments: (b.hotComments || []).map(map),
-        });
-      } catch (e) { return sendJSON(res, { error: e.message, comments: [], hotComments: [] }, 500); }
+    // ---------- 评论（统一层：网易云 / QQ 音乐 / 汽水） ----------
+    if (pn === '/api/comments' || pn === '/api/comment') {
+      const provider = String(q.get('provider') || 'netease').toLowerCase();
+      if (req.method === 'POST') {
+        const body = await readBody(req);
+        return sendJSON(res, await commentsApi.write({
+          provider: String(body.provider || provider).toLowerCase(),
+          id: String(body.id || q.get('id') || ''),
+          songId: body.songId || q.get('songId') || '',
+          content: body.content || '',
+        }));
+      }
+      return sendJSON(res, await commentsApi.read({
+        provider,
+        id: String(q.get('id') || ''),
+        songId: q.get('songId') || '',
+        offset: q.get('offset') || 0,
+        limit: q.get('limit') || 20,
+        cursor: q.get('cursor') || '',
+        type: q.get('type') || '',
+      }));
     }
 
     // ==================== 音频代理（汽水解密 + QQ/跨域透传） ====================

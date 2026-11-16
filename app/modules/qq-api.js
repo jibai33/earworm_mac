@@ -65,7 +65,8 @@ function mapQQSong(t) {
     id: t.songmid || t.mid || '',
     mid: t.songmid || t.mid || '',
     mediaMid: (t.file && t.file.media_mid) || t.media_mid || (album.mid || t.albummid || ''),
-    songId: t.songid || 0,
+    // 新版搜索只回 id（数字），老接口才叫 songid；评论要用这个数字 id 当 topid
+    songId: t.id || t.songid || 0,
     name: t.songname || t.name || '',
     artist: singers.join(' / ') || '未知歌手',
     album: album.name || '',
@@ -222,7 +223,132 @@ async function handleQQLyric(mid, songId) {
   return { provider: 'qq', lyric, tlyric: trans };
 }
 
+/* ---------- 评论 ----------
+   QQ 的评论走老 fcg 接口（musicu 那套 globalComment 模块现在回 500003）：
+     cmd=6 热评 / cmd=8 最新（含热评，带总数）/ cmd=1 发表（登录校验在前，未登录直接 1000）
+   发表只能靠用户自己的登录 cookie，这里不伪造任何凭据。 */
+const QQ_COMMENT_URL = 'https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg';
+function qqCommentParams(extra) {
+  return Object.assign({
+    g_tk: 5381, g_tk_new_20200303: 5381, loginUin: 0, hostUin: 0,
+    format: 'json', inCharset: 'utf8', outCharset: 'utf-8', notice: 0,
+    platform: 'yqq.json', needNewCode: 0, domain: 'qq.com',
+    ct: 24, cv: 10101010, reqtype: 2, biztype: 1, needmusiccrit: 0, lasthotcommentid: '',
+  }, extra);
+}
+function qqCommentFetch(params, cookie, method) {
+  return new Promise((resolve, reject) => {
+    const qs = new URLSearchParams(params).toString();
+    const isPost = method === 'POST';
+    const url = new URL(QQ_COMMENT_URL + (isPost ? '' : '?' + qs));
+    const headers = Object.assign({}, QQ_HEADERS, {
+      'Referer': 'https://y.qq.com/', 'Accept': 'application/json, text/javascript, */*',
+    });
+    if (isPost) {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      headers['Content-Length'] = Buffer.byteLength(qs);
+    }
+    const c = cookie === undefined ? qqCookie : cookie;
+    if (c) headers.Cookie = c;
+    const req = https.request(url, { method: isPost ? 'POST' : 'GET', headers, timeout: 12000 }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch { reject(new Error('QQ 评论响应解析失败')); }
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error('QQ 评论请求超时')));
+    req.on('error', reject);
+    req.end(isPost ? qs : undefined);
+  });
+}
+function mapQQComment(c) {
+  c = c || {};
+  const uid = String(c.encrypt_uin || '').replace(/\*+$/, '');
+  return {
+    id: String(c.commentid || c.rootcommentid || uid + '_' + (c.time || '')),
+    content: String(c.rootcommentcontent || c.content || '').trim(),
+    likedCount: Number(c.praisenum || 0) || 0,
+    time: (Number(c.time) || 0) * 1000,
+    isHot: !!(c.is_hot_cmt || c.is_stick),
+    reply: c.middlecommentcontent ? String(c.middlecommentcontent).trim() : '',
+    user: {
+      nickname: String(c.nick || c.rootcommentnick || 'QQ 音乐用户').replace(/^@/, ''),
+      avatar: String(c.avatarurl || ''),
+    },
+  };
+}
+function qqCommentTotal(body) {
+  const d = (body && body.comment) || {};
+  const n = Number(d.commenttotal || (body && body.commenttotal) || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+async function handleQQComments(songId, opts, cookie) {
+  const topid = Number(songId) || 0;
+  if (!topid) {
+    return { provider: 'qq', total: 0, comments: [], hotComments: [], hasMore: false, error: '缺少 QQ 歌曲数字 id（songId），无法定位评论区' };
+  }
+  opts = opts || {};
+  const limit = Math.max(1, Math.min(50, Number(opts.limit) || 20));
+  const page = Math.max(0, Number(opts.page) || 0);
+  const wantHot = opts.type === 'hot' || page === 0;
+  const out = { provider: 'qq', total: 0, comments: [], hotComments: [], page, hasMore: false, loggedIn: qqLoginInfo().loggedIn };
+
+  const latest = await qqCommentFetch(qqCommentParams({ cmd: 8, topid, pagenum: page, pagesize: limit }), cookie, 'GET');
+  if (latest && latest.code === 1000) return Object.assign(out, { error: 'QQ 评论需要登录后才能查看' });
+  if (!latest || (latest.code && latest.code !== 0)) {
+    return Object.assign(out, { error: 'QQ 评论暂时取不到（' + ((latest && (latest.msg || latest.code)) || '未知原因') + '）' });
+  }
+  const latestList = ((latest.comment || {}).commentlist) || [];
+  out.total = qqCommentTotal(latest);
+  out.comments = latestList.map(mapQQComment).filter(c => c.content);
+  out.hasMore = out.comments.length >= limit && out.total > page * limit + out.comments.length;
+
+  if (wantHot) {
+    try {
+      const hot = await qqCommentFetch(qqCommentParams({ cmd: 6, topid, pagenum: 0, pagesize: limit }), cookie, 'GET');
+      const hotList = ((hot && hot.comment || {}).commentlist) || [];
+      // cmd=6 本身就是「热评榜」，逐条补上标记；不能再按 is_hot 判，
+      // 最新列表里几乎每条都带 is_hot=1，全标成热评等于没标
+      out.hotComments = hotList.map(mapQQComment).filter(c => c.content).map(c => Object.assign({}, c, { isHot: true }));
+    } catch { out.hotComments = []; }
+  }
+  return out;
+}
+async function handleQQPostComment(songId, content, cookie) {
+  const topid = Number(songId) || 0;
+  const text = String(content || '').trim();
+  if (!topid) return { ok: false, provider: 'qq', error: '缺少 QQ 歌曲数字 id，无法发表评论' };
+  if (!text) return { ok: false, provider: 'qq', error: '评论内容不能为空' };
+  if (text.length > 300) return { ok: false, provider: 'qq', error: 'QQ 评论最多 300 字' };
+  const login = qqLoginInfo();
+  if (!login.loggedIn) {
+    return { ok: false, provider: 'qq', needLogin: true, error: '需要登录 QQ 音乐才能发评论' };
+  }
+  let r;
+  try {
+    r = await qqCommentFetch(qqCommentParams({ cmd: 1, topid, content: text, pagenum: 0, pagesize: 15 }), cookie, 'POST');
+  } catch (e) {
+    return { ok: false, provider: 'qq', error: '发送失败：' + e.message };
+  }
+  const code = Number(r && r.code);
+  if (code === 1000) return { ok: false, provider: 'qq', needLogin: true, error: 'QQ 音乐登录态已失效，请重新登录' };
+  if (code !== 0) {
+    return { ok: false, provider: 'qq', error: 'QQ 返回：' + ((r && (r.msg || r.subcode)) || code || '未知错误') };
+  }
+  return {
+    ok: true, provider: 'qq',
+    comment: {
+      id: String((r && (r.commentid || r.id)) || 'me_' + Date.now()),
+      content: text, likedCount: 0, time: Date.now(), isHot: false, reply: '',
+      user: { nickname: login.nickname || '我', avatar: login.avatar || '' },
+    },
+  };
+}
+
 module.exports = {
   setQQCookie, getQQCookie, qqLoginInfo, qqPlaybackAuth,
   handleQQSearch, handleQQSongUrl, handleQQLyric,
+  handleQQComments, handleQQPostComment,
 };

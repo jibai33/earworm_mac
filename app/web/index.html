@@ -665,6 +665,7 @@
     <button id="mini-expand" class="icon-btn bar-ico" aria-label="展开">⌃</button>
   </div>
   <div class="bar-right">
+    <button id="bar-comments" class="icon-btn bar-ico" aria-label="评论">💬</button>
     <button id="mode-btn" class="icon-btn bar-ico" aria-label="播放模式"><span id="mode-icon">⇉</span></button>
     <button id="queue-btn" class="icon-btn bar-ico" aria-label="播放队列">☰</button>
     <button id="bar-lyric" class="icon-btn bar-ico" aria-label="歌词">词</button>
@@ -721,10 +722,26 @@
 </div>
 <div id="queue-mask" class="queue-mask" hidden></div>
 
-<!-- ══ 评论抽屉 ══ -->
-<div id="comment-drawer" class="queue-drawer" hidden>
-  <div class="queue-head"><span class="sec-title small">评论 <span class="sec-en">COMMENTS</span></span><button id="comment-close" class="icon-btn">✕</button></div>
-  <div id="comment-list" class="comment-list"></div>
+<!-- ══ 评论抽屉（网易云 / QQ 音乐 / 汽水 统一） ══ -->
+<div id="comment-drawer" class="queue-drawer cmt-drawer" hidden>
+  <div class="queue-head">
+    <span class="sec-title small">评论 <span class="sec-en">COMMENTS</span></span>
+    <div class="cmt-head-side">
+      <span id="cmt-badge" class="cmt-badge" hidden></span>
+      <button id="comment-close" class="icon-btn">✕</button>
+    </div>
+  </div>
+  <div id="comment-list" class="comment-list">
+    <div class="cmt-empty">正在取评论……</div>
+  </div>
+  <div class="cmt-compose">
+    <textarea id="cmt-input" rows="2" maxlength="300" placeholder="写一句…" spellcheck="false"></textarea>
+    <div class="cmt-row">
+      <span id="cmt-hint" class="cmt-hint"></span>
+      <span id="cmt-count" class="cmt-count">0/300</span>
+      <button id="cmt-send" class="cmt-send" type="button">发送</button>
+    </div>
+  </div>
 </div>
 <div id="comment-mask" class="queue-mask" hidden></div>
 

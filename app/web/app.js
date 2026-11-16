@@ -90,6 +90,8 @@ window.EW = {
   toast: (msg, warn) => toast(msg, warn),
   flashTray: (ms) => { trayFlashUntil = Date.now() + (ms || 900); },
   queueGen: () => queueGen,
+  // ⌘K 里需要一个入口，但不希望别的模块直接碰抽屉 DOM
+  comments: () => openComments(),
 };
 
 /* 事件流里只存了歌曲的基本信息（QQ 的 mid 之类播放字段不落库）。
@@ -1120,6 +1122,7 @@ async function playIndex(i) {
   $('quality-badge').hidden = true;
   loadLyrics(s);
   refreshLikeState(s);
+  syncCommentsToTrack();
   $('play-icon').textContent = '…'; $('mini-icon').textContent = '…';
   try {
     let url = '';
@@ -1972,34 +1975,250 @@ $('rate-btn').addEventListener('click', () => {
   $('rate-icon').textContent = RATES[rateIdx] + '×';
 });
 
-/* ---------- 评论抽屉（复刻原版热评） ---------- */
+/* ---------- 评论抽屉（网易云 / QQ 音乐 / 汽水 统一） ----------
+   平台差异全部收在服务端的统一评论层里，前端只认三件事：
+   provider、曲目 id、一页数据。分页用服务端给的不透明令牌翻页，
+   不必知道网易云按 offset、QQ 按页、汽水按游标。 */
+const CMT = {
+  gen: 0, key: '', offset: 0, hasMore: false, loading: false, sending: false,
+  seen: new Set(),
+};
+let cmtCloseTimer = null;
+
+function cmtTrack() { return state.queue[state.index] || null; }
+function cmtKeyOf(t) { return t ? `${t.provider}:${t.id}` : ''; }
+function cmtPlatformName(p) {
+  return ({ netease: '网易云音乐', qq: 'QQ 音乐', qishui: '汽水音乐', xy: '小宇宙' })[p] || '评论';
+}
+function cmtWan(n) {
+  n = Number(n) || 0;
+  if (n >= 10000) return (n / 10000).toFixed(n >= 100000 ? 0 : 1) + ' 万条';
+  return n ? n + ' 条' : '';
+}
+
 function openComments() {
+  clearTimeout(cmtCloseTimer);
   $('comment-drawer').hidden = false;
   $('comment-mask').hidden = false;
-  loadComments();
+  requestAnimationFrame(() => $('comment-drawer').classList.add('show'));
+  loadComments(true);
 }
-function closeComments() { $('comment-drawer').hidden = true; $('comment-mask').hidden = true; }
+function closeComments() {
+  $('comment-drawer').classList.remove('show');
+  cmtCloseTimer = setTimeout(() => {
+    $('comment-drawer').hidden = true;
+    $('comment-mask').hidden = true;
+  }, 340);
+}
 $('comment-btn').addEventListener('click', openComments);
+/* 展开态（stage）在 v2 布局里是隐藏的，底部播放条才是日常入口，两处都挂上 */
+$('bar-comments').addEventListener('click', openComments);
 $('comment-close').addEventListener('click', closeComments);
 $('comment-mask').addEventListener('click', closeComments);
-async function loadComments() {
+
+/* 头像走本机图片代理，个别 CDN 会 403 或长时间不回；拿不到就退回字符占位，别留一块灰 */
+function cmtSwapAvatar(img) {
+  if (!img || !img.parentNode) return;
+  const s = document.createElement('span');
+  s.className = 'c-avatar c-avatar-ph';
+  s.textContent = '♪';
+  img.replaceWith(s);
+}
+let cmtAvatarTimer = null;
+function cmtSweepAvatars() {
+  clearTimeout(cmtAvatarTimer);
+  cmtAvatarTimer = setTimeout(() => {
+    document.querySelectorAll('#comment-list img.c-avatar').forEach((img) => {
+      if (!img.complete || !img.naturalWidth) cmtSwapAvatar(img);
+    });
+  }, 5000);
+}
+$('comment-list').addEventListener('error', (e) => {
+  const el = e.target;
+  if (el && el.classList && el.classList.contains('c-avatar')) cmtSwapAvatar(el);
+}, true);
+
+/* 切歌时抽屉还开着就把内容换掉，别让上一首的评论留在这首上 */
+function syncCommentsToTrack() {
+  if ($('comment-drawer').hidden) return;
+  if (cmtKeyOf(cmtTrack()) !== CMT.key) loadComments(true);
+}
+
+function cmtAvatar(u) {
+  const src = u && u.avatar ? coverUrl(u.avatar) : '';
+  return src
+    ? `<img class="c-avatar" src="${src}" loading="lazy" decoding="async">`
+    : '<span class="c-avatar c-avatar-ph">♪</span>';
+}
+function cmtItemHtml(c) {
+  c = c || {};
+  const nick = escapeHtml((c.user && c.user.nickname) || '匿名');
+  const reply = c.reply ? `<div class="c-reply">${escapeHtml(c.reply)}</div>` : '';
+  const like = c.likedCount ? `<span class="c-likes">♥ ${plural(c.likedCount)}</span>` : '';
+  return `<div class="c-item">${cmtAvatar(c.user)}<div class="c-body">
+    <div class="c-head"><span class="c-nick">${nick}</span>${like}</div>
+    <div class="c-content">${escapeHtml(c.content || '')}</div>${reply}</div></div>`;
+}
+function cmtSectionHtml(title) { return `<div class="c-sec">${title}</div>`; }
+function cmtEmpty(html) { $('comment-list').innerHTML = `<div class="cmt-empty">${html}</div>`; }
+function cmtHint(text, isErr) {
+  const el = $('cmt-hint');
+  el.textContent = text || '';
+  el.classList.toggle('is-err', !!isErr);
+}
+
+async function loadComments(reset) {
   const box = $('comment-list');
-  const cur = state.queue[state.index];
-  box.innerHTML = '<div class="c-item"><div class="c-content">正在取评论……</div></div>';
-  if (!cur) { box.innerHTML = '<div class="c-item"><div class="c-content">先放首歌再来</div></div>'; return; }
-  if (cur.provider !== 'netease') { box.innerHTML = `<div class="c-item"><div class="c-content">「${cur.provider === 'xy' ? '小宇宙' : cur.provider === 'qq' ? 'QQ 音乐' : '汽水'}」暂不支持评论区</div></div>`; return; }
+  const t = cmtTrack();
+
+  if (reset) {
+    CMT.gen += 1;
+    CMT.offset = 0;
+    CMT.hasMore = false;
+    CMT.seen = new Set();
+    CMT.key = cmtKeyOf(t);
+    cmtHint('');
+    $('cmt-count').textContent = '0/300';
+  }
+  const gen = CMT.gen;
+
+  if (!t) {
+    $('cmt-badge').hidden = true;
+    $('comment-drawer').classList.add('is-readonly');   // 没在播，输入框也没有意义
+    cmtEmpty('先放首歌再来');
+    return;
+  }
+
+  const prov = t.provider || 'netease';
+  $('cmt-badge').hidden = false;
+  $('cmt-badge').textContent = cmtPlatformName(prov);
+
+  /* 小宇宙没有开放评论接口，如实说明，不摆一个空输入框骗人 */
+  if (prov === 'xy') {
+    $('comment-drawer').classList.add('is-readonly');
+    cmtEmpty('小宇宙没有开放评论接口<br><span class="cmt-sub">这一首只能听，评论区在播客 App 里</span>');
+    return;
+  }
+  $('comment-drawer').classList.remove('is-readonly');
+
+  /* 不再用单布尔量挡住并发：切歌时旧请求还在路上，靠 gen 丢弃旧结果更可靠 */
+  CMT.loading = true;
+  if (reset) cmtEmpty('正在取评论……');
+
+  const qs = new URLSearchParams({
+    provider: prov,
+    id: String(prov === 'qq' ? (t.songId || t.id || '') : t.id),
+    offset: String(CMT.offset),
+    limit: '20',
+  });
+  if (prov === 'qq') { qs.set('songId', String(t.songId || '')); qs.set('mid', t.mid || ''); }
+
   try {
-    const d = await api(`/api/comment?id=${cur.id}`);
-    const item = (c) => `<div class="c-item"><img class="c-avatar" src="${coverUrl(c.user.avatar) || 'icon.svg'}" loading="lazy"><div class="c-body"><div class="c-head"><span class="c-nick">${escapeHtml(c.user.nickname)}</span><span class="c-likes">♥ ${c.likedCount}</span></div><div class="c-content">${escapeHtml(c.content)}</div></div></div>`;
-    const hot = (d.hotComments || []).map(c => Object.assign({}, c, { likedCount: c.likedCount })).slice(0, 5);
-    const rest = (d.comments || []);
-    box.innerHTML = (hot.length ? '<div class="c-sec">云村热评</div>' + hot.map(item).join('') : '') +
-      (rest.length ? '<div class="c-sec">最新评论</div>' + rest.map(item).join('') : '') ||
-      '<div class="c-item"><div class="c-content">还没有人评论</div></div>';
+    const r = await api('/api/comments?' + qs.toString());
+    if (gen !== CMT.gen) { CMT.loading = false; return; }   // 期间切了歌，丢弃这次结果
+    CMT.loading = false;
+
+    const badge = cmtWan(r.total);
+    $('cmt-badge').textContent = cmtPlatformName(prov) + (badge ? ' · ' + badge : '');
+
+    if (!r.ok) {
+      const login = r.needLogin ? `<button class="cmt-login" data-cmt-login="${prov}">去登录</button>` : '';
+      cmtEmpty(escapeHtml(r.error || '评论加载失败') + (login ? '<br>' + login : ''));
+      const lb = box.querySelector('.cmt-login');
+      if (lb) lb.addEventListener('click', () => openLogin(prov));
+      return;
+    }
+
+    if (reset) box.innerHTML = '';
+    const frag = [];
+    if (CMT.offset === 0) {
+      const hot = (r.hot || []).filter(c => c.content && !CMT.seen.has(c.id));
+      hot.forEach(c => CMT.seen.add(c.id));
+      if (hot.length) frag.push(cmtSectionHtml('热评') + hot.map(cmtItemHtml).join(''));
+      frag.push(cmtSectionHtml('最新'));
+    }
+    const rest = (r.comments || []).filter(c => c.content && !CMT.seen.has(c.id));
+    rest.forEach(c => CMT.seen.add(c.id));
+    frag.push(rest.map(cmtItemHtml).join(''));
+
+    const more = $('cmt-more');
+    if (more) more.remove();
+    box.insertAdjacentHTML('beforeend', frag.join(''));
+    cmtSweepAvatars();
+
+    if (CMT.offset === 0 && !rest.length && !(r.hot || []).length) {
+      cmtEmpty('还没有人评论<br><span class="cmt-sub">你可以是第一个</span>');
+      return;
+    }
+    CMT.offset = Number(r.nextToken) || CMT.offset + rest.length;
+    CMT.hasMore = !!r.hasMore;
+    if (CMT.hasMore) {
+      box.insertAdjacentHTML('beforeend', '<button id="cmt-more" class="cmt-more" type="button">加载更多</button>');
+      $('cmt-more').addEventListener('click', () => { $('cmt-more').remove(); loadComments(false); });
+    }
   } catch (e) {
-    box.innerHTML = `<div class="c-item"><div class="c-content">评论加载失败：${escapeHtml(e.message)}</div></div>`;
+    CMT.loading = false;
+    if (gen !== CMT.gen) return;
+    cmtEmpty('评论加载失败：' + escapeHtml(e.message));
   }
 }
+
+async function sendComment() {
+  const t = cmtTrack();
+  if (!t || CMT.sending) return;
+  const input = $('cmt-input');
+  const text = input.value.trim();
+  if (!text) { cmtHint('先写点什么再发', true); input.focus(); return; }
+  if (t.provider === 'xy') { cmtHint('小宇宙没有开放评论接口', true); return; }
+
+  CMT.sending = true;
+  const btn = $('cmt-send');
+  btn.disabled = true; btn.textContent = '发送中…';
+  cmtHint('');
+  try {
+    const r = await api('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: t.provider,
+        id: String(t.provider === 'qq' ? (t.songId || t.id || '') : t.id),
+        songId: t.songId || '',
+        content: text,
+      }),
+    });
+    if (r.ok) {
+      input.value = '';
+      $('cmt-count').textContent = '0/300';
+      cmtHint('已发布');
+      const list = $('comment-list');
+      const mine = cmtItemHtml(r.comment || { content: text, user: { nickname: '我' } });
+      const sec = list.querySelector('.c-sec');
+      if (sec) sec.insertAdjacentHTML('afterend', mine);
+      else list.insertAdjacentHTML('afterbegin', mine);
+      list.scrollTop = 0;
+    } else {
+      const login = r.needLogin ? ` <button class="cmt-login" data-cmt-login="${t.provider}">去登录</button>` : '';
+      $('cmt-hint').innerHTML = escapeHtml(r.error || '发送失败') + login;
+      $('cmt-hint').classList.add('is-err');
+      const lb = $('cmt-hint').querySelector('.cmt-login');
+      if (lb) lb.addEventListener('click', () => openLogin(t.provider));
+    }
+  } catch (e) {
+    cmtHint('发送失败：' + e.message, true);
+  } finally {
+    CMT.sending = false;
+    btn.disabled = false; btn.textContent = '发送';
+  }
+}
+$('cmt-send').addEventListener('click', sendComment);
+$('cmt-input').addEventListener('input', () => {
+  const n = $('cmt-input').value.length;
+  $('cmt-count').textContent = n + '/300';
+  if (n > 0 && $('cmt-hint').classList.contains('is-err')) cmtHint('');
+});
+$('cmt-input').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendComment(); }
+});
 
 /* ---------- 本地收藏夹（复刻原版 collect；未登录网易云时红心即收藏） ---------- */
 function getCollects() { try { return JSON.parse(localStorage.getItem('ew_collect') || '[]'); } catch { return []; } }
