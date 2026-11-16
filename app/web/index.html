@@ -1012,13 +1012,14 @@
     </div>
 
     <div class="amb-group">
-      <div class="amb-label"><span>心情 MOOD</span><small>从听歌节奏推断，不是情绪识别</small></div>
+      <div class="amb-label"><span>心情 MOOD</span><small>从听歌节奏推断，不是情绪识别；随乐读实时响度</small></div>
       <div class="amb-opts" id="amb-mood-opts">
         <button type="button" data-amb-m="auto">自动</button>
         <button type="button" data-amb-m="calm">静</button>
         <button type="button" data-amb-m="bright">亮</button>
         <button type="button" data-amb-m="mellow">柔</button>
         <button type="button" data-amb-m="restless">跳</button>
+        <button type="button" data-amb-m="live">随乐</button>
       </div>
     </div>
 
@@ -1040,11 +1041,13 @@
         <input id="amb-city" type="text" placeholder="城市，如 杭州 / Shanghai" autocomplete="off" spellcheck="false">
         <button id="amb-city-save" type="button">保存</button>
       </div>
-      <div class="amb-note" id="amb-real-note">关闭时完全不出网；开启后由本机服务代理请求 Open-Meteo，30 分钟缓存一次。</div>
+      <button id="amb-city-locate" type="button" class="amb-locate">按 IP 建议城市（只查城市级）</button>
+      <div class="amb-note" id="amb-real-note">关闭时完全不出网；开启后由本机服务代理请求 Open-Meteo，30 分钟缓存一次。没有填城市时会先按 IP 建议一次。</div>
     </div>
 
     <div class="amb-foot">
-      天气默认只看本机时钟，每 15 分钟在符合时段的形态里缓慢轮换；心情看时段、是否在播、切歌节奏与深夜模式。<br>
+      天气默认只看本机时钟，每 15 分钟在符合时段的形态里缓慢轮换；心情默认看时段、是否在播、切歌节奏与深夜模式，
+      「随乐」档改成跟随实时响度（读播放器自己的 analyser，不碰麦克风、不上传音频）。<br>
       切到深夜自动降密度；开启「减少动态效果」时只留一帧静态画面。所有偏好只存在本机。
     </div>
   </div>

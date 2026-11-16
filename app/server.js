@@ -325,6 +325,7 @@ async function tasteRecommendations(p, variant = 0) {
 const weatherGeoCache = new Map();    // city -> { name, lat, lon } | null
 const weatherCache = new Map();       // lat,lon -> { ts, data }
 const WEATHER_TTL = 30 * 60 * 1000;
+let locateCache = null;               // { ts, data } 城市级归属，24h
 
 function wmoToWeather(code, temp, wind) {
   if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snow';
@@ -791,6 +792,34 @@ const server = http.createServer(async (req, res) => {
       } catch (e) {
         return sendJSON(res, { ok: false, reason: '天气服务暂不可用：' + ((e && e.message) || 'timeout') });
       }
+    }
+
+    // ==================== 氛围背景 · 按 IP 建议城市（可选） ====================
+    // 只回答「这台机器大概在哪座城市」，用于省去手填城市名。
+    // 只取 city / region / country 三个字段，不保留 IP、不存坐标、不落盘；
+    // 内存里留 24 小时。拿不到就 ok:false，让用户自己填，绝不猜一个城市顶上。
+    if (pn === '/api/ambient/locate') {
+      if (locateCache && Date.now() - locateCache.ts < 24 * 60 * 60 * 1000) {
+        return sendJSON(res, locateCache.data);
+      }
+      let out = { ok: false, reason: '归属地服务暂不可用' };
+      try {
+        const d = await fetchTimeout('https://ipapi.co/json/', 4500);
+        if (d && d.city) {
+          out = { ok: true, city: String(d.city).slice(0, 40), region: String(d.region || '').slice(0, 40), country: String(d.country_code || ''), source: 'ipapi' };
+        }
+      } catch (e) { /* 换备用源 */ }
+      if (!out.ok) {
+        try {
+          // ip-api 免费档只有 http；字段限定到最少，避免带回坐标
+          const d2 = await fetchTimeout('http://ip-api.com/json/?fields=status,city,regionName,countryCode&lang=zh-CN', 4500);
+          if (d2 && d2.status === 'success' && d2.city) {
+            out = { ok: true, city: String(d2.city).slice(0, 40), region: String(d2.regionName || '').slice(0, 40), country: String(d2.countryCode || ''), source: 'ip-api' };
+          }
+        } catch (e) { /* 两个都失败就老实返回失败 */ }
+      }
+      if (out.ok) locateCache = { ts: Date.now(), data: out };
+      return sendJSON(res, out);
     }
 
     // ==================== 听感画像 / 个性化推荐（Web + macOS + iOS 共用契约） ====================

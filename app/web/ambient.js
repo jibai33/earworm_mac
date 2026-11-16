@@ -50,6 +50,9 @@
     bright:   { label: '亮', glyph: '✦', density: 1.12, speed: 1.12, warm: .3,   alpha: 1.05 },
     mellow:   { label: '柔', glyph: '♩', density: .9,  speed: .86, warm: .42,  alpha: .92 },
     restless: { label: '跳', glyph: '»', density: 1.2, speed: 1.5, warm: -.12, alpha: 1 },
+    /* 随乐：不做情绪判断，直接读播放器已有的 analyser（响度 + 低频）。
+       数值是「基准」，真正的密度 / 速度 / 透明度逐帧由 liveLevel 改写。 */
+    live:     { label: '随乐', glyph: '♫', density: .95, speed: .95, warm: .16, alpha: .95, live: true },
   };
   const LEVELS = { off: 0, low: .9, normal: 1.4 };
   const LEVEL_LABEL = { off: '关', low: '轻', normal: '标准' };
@@ -66,8 +69,11 @@
   let parts = [], raf = 0, lastFrame = 0, paused = false;
   let reduce = false, playing = false, swaps = [], lastSong = '';
   let realInfo = null, realErr = '', lastRealAt = 0;
+  let locateNote = '', locateBusy = false;
   let effective = 'clear', effectiveMood = 'calm', note = '';
   let cur = null, target = null, lastShapeKey = '';
+  /* 随乐：只读播放器已有 analyser 的两个数——整体响度、低频占比 */
+  let liveBuf = null, liveLevel = .3, livePrev = .3, livePeak = 0;
 
   const midnight = () => document.body.classList.contains('midnight');
   const GRID = 3;
@@ -99,6 +105,52 @@
     } catch (e) {}
     const cut = Date.now() - 10 * 60 * 1000;
     swaps = swaps.filter((t) => t > cut);
+  }
+
+  /* ---------- 随乐：读播放器已有的 analyser ----------
+     只取两个数：整体响度、低频占比。不碰麦克风、不传音频、不猜情绪，
+     所以它只回答「这段声音有多满」，不回答「你现在开心吗」。
+     起音快（.38）落音慢（.1），否则 18fps 下会抖成噪点。 */
+  function sampleLive(now) {
+    let raw = 0, bass = 0, has = false;
+    try {
+      const g = window.EW && EW.audio && EW.audio();
+      if (g && g.analyser) {
+        if (!liveBuf || liveBuf.length !== g.analyser.frequencyBinCount) {
+          liveBuf = new Uint8Array(g.analyser.frequencyBinCount);
+        }
+        g.analyser.getByteFrequencyData(liveBuf);
+        let s = 0, n = 0, b = 0, nb = 0;
+        /* fftSize 256 → 128 bin；0-8 是低频（鼓 / 贝斯），其余是主体 */
+        for (let i = 0; i < liveBuf.length; i++) {
+          const v = liveBuf[i] / 255;
+          s += v; n++;
+          if (i < 9) { b += v; nb++; }
+        }
+        raw = n ? s / n : 0;
+        bass = nb ? b / nb : 0;
+        has = true;
+      }
+    } catch (e) { has = false; }
+
+    let want;
+    /* 不看 playing 标志：它 2 秒才轮询一次，切到随乐会先愣一下。
+       直接看响度——静音时 analyser 自然归零，和「没在播」是同一件事。 */
+    if (!has || raw < .02) {
+      /* 没在播 / 曲间留白：不冻成一块死灰，给一层极慢的呼吸底 */
+      want = .26 + .1 * Math.sin(now / 3400);
+    } else {
+      const loud = clamp((raw - .06) / .34, 0, 1);      // 压掉开头一段底噪
+      want = .15 + .85 * loud + .22 * clamp(bass * 1.3, 0, 1);
+    }
+    liveLevel = lerp(liveLevel, clamp(want, 0, 1.25), want > liveLevel ? .38 : .1);
+
+    /* 起音脉冲：能量突然抬头时追加一点亮度，落回很快 */
+    const rise = liveLevel - livePrev;
+    livePrev = liveLevel;
+    if (rise > .06) livePeak = Math.min(1, livePeak + rise * 1.6);
+    livePeak *= .86;
+    return clamp(liveLevel + livePeak * .35, 0, 1.3);
   }
 
   /* 自动天气：只从本机时钟推断，时段内每 15 分钟缓慢轮换，不假装知道外面下没下雨 */
@@ -165,6 +217,7 @@
         ? (realInfo ? `真实天气 · ${realInfo.city || cfg.city} · ${WEATHERS[effective] ? WEATHERS[effective].label : effective}`
           : (realErr || '天气服务暂不可用 · 已回退本机推断'))
         : '本机推断 · 不出网';
+    if (cfg.mood === 'live') note += ' · 读实时响度';
     syncUI();
   }
 
@@ -230,8 +283,17 @@
       else cur[k] = target[k];
     } else Object.assign(cur, target);
 
+    // 随乐：亮度 / 速度 / 密度由实时响度改写，颜色不跟着跳（否则像故障）
+    let liveMul = 1;
+    if (MOODS[effectiveMood] && MOODS[effectiveMood].live) {
+      const L = frozen ? .34 : sampleLive(t);
+      liveMul = .55 + 1.05 * L;
+      cur.speed = target.speed * (.5 + 1.55 * L);
+      cur.alpha = target.alpha * (.55 + .95 * L);
+    }
+
     // 数量也渐变：一帧最多增减 1 个，避免切天气时整屏闪一下
-    const want = clamp(Math.round(cur.count), 0, 64);
+    const want = clamp(Math.round(cur.count * liveMul), 0, 64);
     if (parts.length < want) parts.push(makePart(false));
     else if (parts.length > want) parts.pop();
 
@@ -291,10 +353,14 @@
       .then((r) => r.json());
   }
   async function refreshReal(force) {
-    if (!cfg.real) { realInfo = null; realErr = ''; recalc(); return; }
+    if (!cfg.real) { realInfo = null; realErr = ''; locateNote = ''; recalc(); return; }
     if (!cfg.city.trim()) {
-      realInfo = null; realErr = '填了城市才取真实天气 · 已回退本机推断';
-      recalc(); return;
+      /* 没填城市：先试一次按 IP 建议，成了就直接用；不成才让用户手填 */
+      realInfo = null; realErr = '';
+      locateNote = '还没填城市 · 正在按 IP 建议…';
+      recalc();
+      locateCity();
+      return;
     }
     if (!force && realInfo && Date.now() - lastRealAt < 30 * 60 * 1000) return;
     try {
@@ -307,6 +373,33 @@
     } catch (e) {
       realInfo = null; realErr = '天气服务连不上 · 已回退本机推断';
     }
+    recalc();
+  }
+
+  /* ---------- 按 IP 建议城市（城市级，仅一次） ----------
+     只把「城市」这一个字段带回来，不存 IP、不做精确到街区的定位；
+     失败就明说失败，绝不猜一个城市糊上去。 */
+  async function locateCity() {
+    if (locateBusy) return;
+    locateBusy = true;
+    locateNote = '正在按 IP 建议城市…';
+    recalc();
+    let r = null;
+    try { r = await api('/api/ambient/locate'); } catch (e) { r = null; }
+    locateBusy = false;
+    if (r && r.ok && r.city) {
+      cfg.city = String(r.city).trim();
+      setls(LS.city, cfg.city);
+      const city = $('amb-city');
+      if (city) city.value = cfg.city;
+      realInfo = null; realErr = ''; lastRealAt = 0;
+      locateNote = `已按 IP 建议：${cfg.city}${r.region && r.region !== cfg.city ? ' · ' + r.region : ''}（城市级，可改）`;
+      recalc();
+      if (cfg.real) refreshReal(true);
+      return;
+    }
+    locateNote = '';
+    realErr = '取不到归属地 · 手填城市即可';
     recalc();
   }
 
@@ -331,10 +424,10 @@
     if (city && mask && !mask.hidden && document.activeElement !== city && city.value !== cfg.city) city.value = cfg.city;
     if (rn) {
       rn.textContent = !cfg.real
-        ? '关闭时完全不出网；开启后由本机服务代理请求 Open-Meteo，30 分钟缓存一次。'
+        ? '关闭时完全不出网；开启后由本机服务代理请求 Open-Meteo，30 分钟缓存一次。没填城市时会先按 IP 建议一次城市级归属。'
         : (realInfo
           ? `已取到 ${realInfo.city || cfg.city}：${realInfo.temp != null ? realInfo.temp + '°C · ' : ''}${WEATHERS[realInfo.weather] ? WEATHERS[realInfo.weather].label : realInfo.weather}`
-          : (realErr || '正在取天气…'));
+          : (locateNote || realErr || '正在取天气…'));
     }
   }
 
@@ -350,7 +443,7 @@
     if (!WEATHERS[v]) return;
     cfg.weather = v; setls(LS.weather, v);
     // 手选天气优先于真实天气：避免「选了雨却一直显示晴」
-    if (v !== 'auto') { realInfo = null; realErr = '手动指定天气 · 本机渲染'; }
+    if (v !== 'auto') { realInfo = null; realErr = '手动指定天气 · 本机渲染'; locateNote = ''; }
     recalc();
   }
   function setMood(v) { if (!MOODS[v]) return; cfg.mood = v; setls(LS.mood, v); recalc(); }
@@ -383,10 +476,12 @@
       const city = $('amb-city');
       cfg.city = city ? city.value.trim() : '';
       setls(LS.city, cfg.city);
-      realInfo = null; lastRealAt = 0;
+      realInfo = null; lastRealAt = 0; locateNote = '';
       recalc();
       if (cfg.real) refreshReal(true);
     });
+    const locate = $('amb-city-locate');
+    if (locate) locate.addEventListener('click', () => locateCity());
   }
 
   /* ---------- 慢轮询：2s 一次，不进渲染帧 ---------- */
@@ -432,9 +527,11 @@
       { t: '氛围天气：雨 · 斜落雨丝', g: '┊', run: () => setWeather('rain') },
       { t: '氛围天气：雪 · 慢飘雪块', g: '❄', run: () => setWeather('snow') },
       { t: '氛围心情：自动（听歌节奏）', g: '♩', run: () => setMood('auto') },
+      { t: '氛围心情：随乐（跟随实时响度）', g: '♫', run: () => setMood('live') },
       { t: '背景强度：轻（默认）', g: '▦', run: () => setLevel('low') },
       { t: '背景强度：关', g: '×', run: () => setLevel('off') },
       { t: '刷新真实天气（需已开启并填城市）', g: '↻', run: () => refreshReal(true) },
+      { t: '按 IP 建议城市（真实天气用）', g: '◎', run: () => locateCity() },
     ];
   }
 
@@ -443,11 +540,13 @@
     open: openPanel,
     close: closePanel,
     setWeather, setMood, setLevel,
+    locate: () => locateCity(),
     refresh: () => { recalc(); restart(); },
     debug: () => ({
       weather: effective, mood: effectiveMood, level: cfg.level,
       note, parts: parts.length, want: target && target.count,
       reduce, paused, playing, real: !!cfg.real, city: cfg.city,
+      live: MOODS[effectiveMood] && MOODS[effectiveMood].live ? +liveLevel.toFixed(3) : null,
       realInfo: realInfo ? { city: realInfo.city, weather: realInfo.weather, temp: realInfo.temp } : null,
       swaps: swaps.length, raf: !!raf,
     }),

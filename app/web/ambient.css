@@ -102,6 +102,14 @@
   font-family: var(--pixel-font); font-size: 12px; cursor: pointer;
 }
 .amb-city-row button:hover { border-color: var(--px-amber, #e6b06a); }
+/* 按 IP 建议：次要动作，占整行但视觉权重低于「保存」 */
+.amb-locate {
+  margin-top: 6px; width: 100%; padding: 7px 10px;
+  background: transparent; color: var(--px-dim, #b0b9c2);
+  border: 2px dashed var(--px-line, #2b323d);
+  font-family: var(--pixel-font); font-size: 12px; cursor: pointer;
+}
+.amb-locate:hover { color: var(--px-amber, #e6b06a); border-color: var(--px-amber, #e6b06a); }
 .amb-note {
   margin-top: 9px; color: var(--px-dim, #b0b9c2);
   font-size: 12px; line-height: 1.7; opacity: .85;
